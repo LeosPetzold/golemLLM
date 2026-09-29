@@ -1,0 +1,6 @@
+#Operation:
+HigherPower/Standard Session/Basic Discharge/Basic #Infrastructure:
+Chamber/Basic Bt_Ecd/Basic WorkingGas/Basic-MT Triggering/Basic Homepage/Basic #Diagnostics_Basic:
+PlasmaDetection/Basic BasicDiagnostics/Basic #Diagnostics_OnStage:
+#Diagnostics_OffStage:
+Interferometry/Default #Analysis:

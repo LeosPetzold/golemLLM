@@ -88,21 +88,32 @@ class GolemSHOThttp:
     # Concrete shot functionality
 
     ## Helpers
-    def simUTF8(self, path): # Simple UTF-8 file value processing
+    def   simUTF8(self, path): # Simple UTF-8 file value processing
         return self.client.getShotFileCached(self._shotID, path).decode('utf-8').strip()
+    def simUTF8nl(self, path): # Simple UTF-8 file value processing with newline replacement
+        return self.client.getShotFileCached(self._shotID, path).decode('utf-8').replace('\\n', '\n').strip()
 
     ## Basic information
     @property
     def ID(self):
+        """Shot No (shot 0 as true shot number)"""
         return self._shotID
     @property
     def timestamp(self):
-        """Returns the timestamp of the shot."""
+        """Shot timestamp"""
         return self.simUTF8("shot_date") + " " + self.simUTF8("shot_time")
     @property
     def comment(self):
-        """Returns the comment associated with the shot."""
+        """Shot comment"""
         return self.simUTF8("comment")
+    @property
+    def charging(self):
+        """Shot charging information"""
+        return self.simUTF8("Charging")
+    @property
+    def setup(self):
+        """Shot whole.setup information"""
+        return self.simUTF8nl("whole.setup")
 
 
 # Testing
