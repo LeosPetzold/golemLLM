@@ -93,11 +93,14 @@ class GolemSHOThttp:
     def simUTF8nl(self, path): # Simple UTF-8 file value processing with newline replacement
         return self.client.getShotFileCached(self._shotID, path).decode('utf-8').replace('\\n', '\n').strip()
 
+    def simUTF8i(self, path): return int(self.simUTF8(path))
+    def simUTF8f(self, path): return float(self.simUTF8(path))
+
     ## Basic information
     @property
     def ID(self):
         """Shot No (shot 0 as true shot number)"""
-        return self._shotID
+        return self._shotID # Integer
     @property
     def timestamp(self):
         """Shot timestamp"""
@@ -114,6 +117,20 @@ class GolemSHOThttp:
     def setup(self):
         """Shot whole.setup information"""
         return self.simUTF8nl("whole.setup")
+
+    ## Discharge information
+    def p_chamber_before_discharge_mPa(self):
+        """Shot chamber pressure before discharge"""
+        return self.simUTF8f("Operation/Discharge/p_chamber_pressure_before_discharge")
+    def p_chamber_predischarge_mPa(self):
+        """Shot chamber pressure before discharge"""
+        return self.simUTF8f("Operation/Discharge/p_chamber_pressure_predischarge")
+    def p_working_gas_discharge_request_mPa(self):
+        """Shot working gas pressure request for discharge"""
+        return self.simUTF8f("Operation/Discharge/p_working_gas_discharge_request")
+    def X_working_gas_discharge_request(self):
+        """Shot working gas type request for discharge"""
+        return self.simUTF8("Operation/Discharge/X_working_gas_discharge_request")
 
 
 # Testing
