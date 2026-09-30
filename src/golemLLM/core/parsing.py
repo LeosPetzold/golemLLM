@@ -1,6 +1,5 @@
 # Data parsing
 
-from golemLLM.core.client import GolemCLIENThttp
 from ..helper import find_between
 
 class GolemSHOT:
@@ -181,5 +180,9 @@ class GolemSHOT:
 
 
 # Testing
-client = GolemCLIENThttp(cache=True, verbose=True)
-shot = GolemSHOT(54395, client)
+
+from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
+
+#client = GolemCLIENThttp(cache=True, verbose=True)
+client = GolemCLIENTlocal("/media/anon/ORGANIZED/golemex/tools/shots", cache=True, verbose=True)
+shot = GolemSHOT(53202, client)
