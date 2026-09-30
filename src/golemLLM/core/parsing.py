@@ -181,5 +181,5 @@ class GolemSHOT:
 
 
 # Testing
-client = GolemCLIENThttp(verbose=True)
+client = GolemCLIENThttp(cache=True, verbose=True)
 shot = GolemSHOT(54395, client)
