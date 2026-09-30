@@ -119,15 +119,19 @@ class GolemSHOThttp:
         return self.simUTF8nl("whole.setup")
 
     ## Discharge information
+    @property
     def p_chamber_before_discharge_mPa(self):
         """Shot chamber pressure before discharge"""
         return self.simUTF8f("Operation/Discharge/p_chamber_pressure_before_discharge")
+    @property
     def p_chamber_predischarge_mPa(self):
         """Shot chamber pressure before discharge"""
         return self.simUTF8f("Operation/Discharge/p_chamber_pressure_predischarge")
+    @property
     def p_working_gas_discharge_request_mPa(self):
         """Shot working gas pressure request for discharge"""
         return self.simUTF8f("Operation/Discharge/p_working_gas_discharge_request")
+    @property
     def X_working_gas_discharge_request(self):
         """Shot working gas type request for discharge"""
         return self.simUTF8("Operation/Discharge/X_working_gas_discharge_request")
