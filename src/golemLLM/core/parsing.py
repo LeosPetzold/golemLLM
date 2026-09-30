@@ -132,28 +132,47 @@ class GolemSHOT:
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/b_plasma") == 1.0
     @property
     def t_plasma_duration_ms(self) -> float:
-        """Plasma duration [ms]"""
+        """Plasma duration [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_duration")
     @property
     def t_plasma_start_ms(self) -> float:
-        """Plasma start time [ms]"""
+        """Plasma start time [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_start")
     @property
     def t_plasma_end_ms(self) -> float:
-        """Plasma end time [ms]"""
+        """Plasma end time [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_end")
     @property
     def t_plasma_flattop_duration_ms(self) -> float:
-        """Plasma flattop duration [ms]"""
+        """Plasma flattop duration [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_duration")
     @property
     def t_plasma_flattop_start_ms(self) -> float:
-        """Plasma flattop start time [ms]"""
+        """Plasma flattop start time [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_start")
     @property
     def t_plasma_flattop_end_ms(self) -> float:
-        """Plasma flattop end time [ms]"""
+        """Plasma flattop end time [ms], -1.0 without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_end")
+
+    #endregion
+    #region Plasma parameters
+
+    @property
+    def U_plasma_loop_mean_V(self) -> float:
+        """Plasma loop voltage [V], regardless of plasma"""
+        return self.simUTF8f("Diagnostics/BasicDiagnostics/Results/U_loop_mean")
+    @property
+    def U_plasma_loop_max_V(self) -> float:
+        """Plasma loop voltage max [V], regardless of plasma"""
+        return self.simUTF8f("Diagnostics/BasicDiagnostics/Results/U_loop_max")
+    @property
+    def U_plasma_loop_breakdown_V(self) -> float:
+        """Plasma loop voltage breakdown [V], regardless of plasma"""
+        return self.simUTF8f(
+            "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown") if client.shotProbeHEAD(
+                "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown"
+            ) else float('nan'); # Usually not available
 
     #endregion
 
