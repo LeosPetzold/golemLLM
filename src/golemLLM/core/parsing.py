@@ -1,6 +1,7 @@
 # Data parsing
 
 from ..helper import find_between
+from decimal import Decimal
 
 class GolemSHOT:
     def __init__(self, shotID, client):
@@ -26,6 +27,14 @@ class GolemSHOT:
     def simUTF8s(self, path): return str(self.simUTF8(path))
     def simUTF8i(self, path): return int(self.simUTF8(path))
     def simUTF8f(self, path): return float(self.simUTF8(path))
+    def simUTF8d(self, path): return Decimal(self.simUTF8(path))
+
+    def simTableGen1f2f(self, path):
+        data = self.simUTF8s(path)
+        lines = [line for line in data.splitlines()]
+        for line in lines:
+            a_str, b_str = line.split(",")
+            yield Decimal(a_str), Decimal(b_str)
 
     #endregion
     #region Basic information
@@ -174,6 +183,27 @@ class GolemSHOT:
             ) else float('nan'); # Usually not available
 
     #endregion
+    #region On stage diagnostics
+
+    @property
+    def tabgen_Xt_YUloop_ms_V(self) -> map:
+        """Map of x: time (t) [ms] to y: plasma loop voltage (Uloop) [V]"""
+        return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/U_loop.csv")
+    @property
+    def tabgen_Xt_YBt_ms_T(self) -> map:
+        """Map of x: time (t) [ms] to y: toroidal magnetic field (Bt) [T]"""
+        return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Bt.csv")
+    @property
+    def tabgen_Xt_YIp_s_I(self) -> map:
+        """Map of x: time (t) [ms] to y: plasma current (Ip) [kA]"""
+        return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ip.csv")
+    @property
+    def tabgen_Xt_YIch_s_I(self) -> map:
+        """Map of x: time (t) [ms] to y: chamber current (Ich) [kA]"""
+        return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ich.csv")
+
+    #endregion
+
 
     
 
@@ -183,6 +213,6 @@ class GolemSHOT:
 
 from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
 
-#client = GolemCLIENThttp(cache=True, verbose=True)
-client = GolemCLIENTlocal("/media/anon/ORGANIZED/golemex/tools/shots", cache=True, verbose=True)
+client = GolemCLIENThttp(cache=True, verbose=True)
+#client = GolemCLIENTlocal("/media/user/flashdisk/shots/", cache=True, verbose=True)
 shot = GolemSHOT(53202, client)

@@ -39,7 +39,7 @@ class _GolemCLIENTbase:
 
         data = self.getShotFile(shotID, fileName)
         self._cache[cache_key] = data
-        print(f"[DEBUG] Cached file '{fileName}' for shot {shotID}")
+        if self.verbose: print(f"[DEBUG] Cached file '{fileName}' for shot {shotID}")
         return data
         
     def _clearCache(self):
