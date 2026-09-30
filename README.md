@@ -1,2 +1,4 @@
-# golemLLM
-AI discharge assistant workflow for GOLEM tokamak.
+# GOLEM AI Discharge assistant workflow
+Link an [MCP](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro)-capable [LLM](https://en.wikipedia.org/wiki/Large_language_model) to let it test configurations on the [GOLEM](https://golem.fjfi.cvut.cz/) tokamak. \
+The MCP server provides AI with an intuitive way to view the latest shot data ([shot database](http://golem.fjfi.cvut.cz/shots/0/) via HTTP or filesystem) and lets it submit a [Discharge command](http://golem.fjfi.cvut.cz/shots/0/Operation/Discharge/Styles/index.html) which will (after the operator accepts it) be performed on the tokamak. \
+This is an interative process and will adapt shots to the operator's needs (whether plasma stability or best [MHD](https://en.wikipedia.org/wiki/Magnetohydrodynamics) anomaly detection, depends on instructions) to a point where GOLEM personnel can resume under better conditions without spending time on finding them.

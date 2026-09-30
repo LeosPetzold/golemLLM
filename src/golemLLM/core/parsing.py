@@ -187,19 +187,19 @@ class GolemSHOT:
 
     @property
     def tabgen_Xt_YUloop_ms_V(self) -> map:
-        """Map of x: time (t) [ms] to y: plasma loop voltage (Uloop) [V]"""
+        """Map generator of x: time (t) [ms] to y: plasma loop voltage (Uloop) [V]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/U_loop.csv")
     @property
     def tabgen_Xt_YBt_ms_T(self) -> map:
-        """Map of x: time (t) [ms] to y: toroidal magnetic field (Bt) [T]"""
+        """Map generator of x: time (t) [ms] to y: toroidal magnetic field (Bt) [T]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Bt.csv")
     @property
     def tabgen_Xt_YIp_s_I(self) -> map:
-        """Map of x: time (t) [ms] to y: plasma current (Ip) [kA]"""
+        """Map generator of x: time (t) [ms] to y: plasma current (Ip) [kA]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ip.csv")
     @property
     def tabgen_Xt_YIch_s_I(self) -> map:
-        """Map of x: time (t) [ms] to y: chamber current (Ich) [kA]"""
+        """Map generator of x: time (t) [ms] to y: chamber current (Ich) [kA]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ich.csv")
 
     #endregion
