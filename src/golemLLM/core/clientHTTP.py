@@ -87,16 +87,17 @@ class GolemSHOThttp:
 
     # Concrete shot functionality
 
-    ## Helpers
+#region Helpers
     def   simUTF8(self, path): # Simple UTF-8 file value processing
         return self.client.getShotFileCached(self._shotID, path).decode('utf-8').strip()
     def simUTF8nl(self, path): # Simple UTF-8 file value processing with newline replacement
-        return self.client.getShotFileCached(self._shotID, path).decode('utf-8').replace('\\n', '\n').strip()
+        return simUTF8s(self, path).replace('\\n', '\n')
 
+    def simUTF8s(self, path): return str(self.simUTF8(path))
     def simUTF8i(self, path): return int(self.simUTF8(path))
     def simUTF8f(self, path): return float(self.simUTF8(path))
 
-    ## Basic information
+#region Basic information
     @property
     def ID(self):
         """Shot No (shot 0 as true shot number)"""
@@ -118,7 +119,7 @@ class GolemSHOThttp:
         """Shot whole.setup information"""
         return self.simUTF8nl("whole.setup")
 
-    ## Discharge information
+#region Discharge information
     @property
     def p_chamber_before_discharge_mPa(self):
         """Shot chamber pressure before discharge"""
@@ -134,7 +135,7 @@ class GolemSHOThttp:
     @property
     def X_working_gas_discharge_request(self):
         """Shot working gas type request for discharge"""
-        return self.simUTF8("Operation/Discharge/X_working_gas_discharge_request")
+        return self.simUTF8s("Operation/Discharge/X_working_gas_discharge_request")
 
 
 # Testing
