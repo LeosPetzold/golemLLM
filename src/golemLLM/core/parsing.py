@@ -140,28 +140,39 @@ class GolemSHOT:
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/b_plasma") == 1.0
     @property
     def t_plasma_duration_ms(self) -> float:
-        """Plasma duration [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_duration")
+        """Plasma duration [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_duration"
+                             ) if self.bool_plasma else float('null')
+
     @property
     def t_plasma_start_ms(self) -> float:
-        """Plasma start time [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_start")
+        """Plasma start time [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_start"
+                             ) if self.bool_plasma else float('null')
+
     @property
     def t_plasma_end_ms(self) -> float:
-        """Plasma end time [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_end")
+        """Plasma end time [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_end"
+                             ) if self.bool_plasma else float('null')
+
     @property
     def t_plasma_flattop_duration_ms(self) -> float:
-        """Plasma flattop duration [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_duration")
+        """Plasma flattop duration [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_duration"
+                             ) if self.bool_plasma else float('null')
+
     @property
     def t_plasma_flattop_start_ms(self) -> float:
-        """Plasma flattop start time [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_start")
+        """Plasma flattop start time [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_start"
+                             ) if self.bool_plasma else float('null')
+
     @property
     def t_plasma_flattop_end_ms(self) -> float:
-        """Plasma flattop end time [ms], -1.0 without plasma"""
-        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_end")
+        """Plasma flattop end time [ms], null without plasma"""
+        return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_end"
+                             ) if self.bool_plasma else float('null')
 
     #endregion
     #region Plasma parameters
@@ -180,7 +191,7 @@ class GolemSHOT:
         return self.simUTF8f(
             "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown") if client.shotProbeHEAD(
                 "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown"
-            ) else float('nan'); # Usually not available
+            ) else float('null'); # Usually not available
 
     #endregion
     #region On stage diagnostics
