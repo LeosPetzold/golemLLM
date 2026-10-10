@@ -6,7 +6,7 @@ from decimal import Decimal
 class GolemSHOT:
     def __init__(self, shotID, client):
         if (shotID == 0):
-                    shotID = client.getLatestShotID()
+            shotID = client.getLatestShotID()
         elif (not client.shotProbeHEAD(shotID)):
             raise ValueError(f"Shot ID {shotID} does not exist in the shot database.")
         self._shotID = shotID
