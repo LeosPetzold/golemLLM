@@ -6,7 +6,7 @@ from decimal import Decimal
 class GolemSHOT:
     def __init__(self, shotID, client):
         if (shotID == 0):
-                    result = client.getLatestShotID()
+                    shotID = client.getLatestShotID()
         elif (not client.shotProbeHEAD(shotID)):
             raise ValueError(f"Shot ID {shotID} does not exist in the shot database.")
         self._shotID = shotID
@@ -26,7 +26,6 @@ class GolemSHOT:
     def simUTF8s(self, path): return str(self.simUTF8(path))
     def simUTF8i(self, path): return int(self.simUTF8(path))
     def simUTF8f(self, path): return float(self.simUTF8(path))
-    def simUTF8d(self, path): return Decimal(self.simUTF8(path))
 
     def simTableGen1f2f(self, path):
         data = self.simUTF8s(path)
@@ -206,11 +205,11 @@ class GolemSHOT:
         """Map generator of x: time (t) [ms] to y: toroidal magnetic field (Bt) [T]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Bt.csv")
     @property
-    def tabgen_Xt_YIp_s_I(self) -> map:
+    def tabgen_Xt_YIp_ms_I(self) -> map:
         """Map generator of x: time (t) [ms] to y: plasma current (Ip) [kA]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ip.csv")
     @property
-    def tabgen_Xt_YIch_s_I(self) -> map:
+    def tabgen_Xt_YIch_ms_I(self) -> map:
         """Map generator of x: time (t) [ms] to y: chamber current (Ich) [kA]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ich.csv")
 
