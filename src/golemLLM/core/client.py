@@ -21,8 +21,7 @@ class _GolemCLIENTbase:
         """BASE HAS NO DESCRIPTION FOR THIS."""
 
         if (shotID == 0):
-            result = self.getShotFile(0, "shot_no")
-            shotID = int(result.decode('utf-8').strip())
+            shotID = self.getLatestShotID()
 
         path_parts = [p for p in str(fileName).replace("\\", "/").split("/") if p not in ("", ".", "..")]
         fileName = "/".join(path_parts)
@@ -82,6 +81,8 @@ class GolemCLIENThttp(_GolemCLIENTbase):
 
     # Helper functions
 
+    def getLatestShotID(self):
+        return int(self.getShotFile(0, "shot_no").decode('utf-8').strip())
     def getShotFile(self, shotID, fileName):
         """Downloads a specific file from the shot archive."""
         if self.verbose:
@@ -98,13 +99,11 @@ class GolemCLIENThttp(_GolemCLIENTbase):
                     raise e  # Client error (4xx), do not retry 
             except (urllib.error.URLError, TimeoutError, ConnectionError):
                 pass
-                if attempt < HTTP_ATTEMPTS - 1:
-                    if self.verbose:
-                        print(f"[DEBUG] Attempt {attempt + 1} failed for file '{fileName}' of shot {shotID}. Retrying...")
-                    time.sleep(0.5 * (2 ** attempt))  # Wait a bit before retrying
-                    continue
-                #if e.code == 404:
-                raise FileNotFoundError(f"File '{fileName}' not found for shot {shotID}.")
+            if attempt < HTTP_ATTEMPTS - 1:
+                if self.verbose:
+                    print(f"[DEBUG] Attempt {attempt + 1} failed for file '{fileName}' of shot {shotID}. Retrying...")
+                time.sleep(0.5 * (2 ** attempt))  # Wait a bit before retrying
+        raise ConnectionError(f"Failed to download file '{fileName}' of shot {shotID} after {HTTP_ATTEMPTS} attempts.")
 
     def getShotFileCached(self, shotID, fileName):
         """Downloads a specific file from the shot archive and caches it locally."""
@@ -135,6 +134,12 @@ class GolemCLIENTlocal(_GolemCLIENTbase):
 
     # Helper functions
 
+    def getLatestShotID(self) -> int:
+        ids = [int(dir) for dir in os.listdir(self.basePath)
+            if dir.isdigit() and os.path.isdir(os.path.join(self.basePath, dir))]
+        if not ids:
+            raise FileNotFoundError(f"No labeled shots found at {self.basePath}.")
+        return max(ids)
     def getShotFile(self, shotID, fileName):
         """Reads a specific file from the filesystem."""
         if self.verbose:

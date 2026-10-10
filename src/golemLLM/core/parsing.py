@@ -6,8 +6,7 @@ from decimal import Decimal
 class GolemSHOT:
     def __init__(self, shotID, client):
         if (shotID == 0):
-                    result = client.getShotFile(shotID, "shot_no")
-                    shotID = int(result.decode('utf-8').strip())
+                    result = client.getLatestShotID()
         elif (not client.shotProbeHEAD(shotID)):
             raise ValueError(f"Shot ID {shotID} does not exist in the shot database.")
         self._shotID = shotID
@@ -33,6 +32,10 @@ class GolemSHOT:
         data = self.simUTF8s(path)
         lines = [line for line in data.splitlines()]
         for line in lines:
+            line = line.strip()
+            if not line: continue
+            if line.startswith('#'): continue
+
             a_str, b_str = line.split(",")
             yield Decimal(a_str), Decimal(b_str)
 
@@ -188,12 +191,8 @@ class GolemSHOT:
     @property
     def U_plasma_loop_breakdown_V(self) -> float:
         """Plasma loop voltage breakdown [V], regardless of plasma"""
-        try: result = self.simUTF8f(
-            "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown") if client.shotProbeHEAD(
-                "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown"
-            ) else float('nan') # Usually not available
-        except FileNotFoundError: result = float('nan') # Usually not available
-        return result
+        try: return self.simUTF8f("Diagnostics/BasicDiagnostics/Results/U_loop_breakdown")
+        except FileNotFoundError: return float('nan') # Usually not available
 
     #endregion
     #region On stage diagnostics
