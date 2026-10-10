@@ -13,15 +13,16 @@ HTTP_ATTEMPTS = 5   # retries for file requests
 LOCAL_SHOTSPATH_DEFAULT = "/home/tG/shots/" # Sample; shots shall be named by number
 LOCAL_ATTEMPTS = 5  # retries for file access
 
+_MISSING = object() # Sentinel for missing files
 
 # Golem CLIENT base for shared processing functionality & caching features
 class _GolemCLIENTbase:
     def _getShotFileCached(self, shotID, fileName):
         """BASE HAS NO DESCRIPTION FOR THIS."""
 
-        #if (shotID == 0):
-        #            result = self.getShotFile(shotID, "shot_no")
-        #            shotID = int(result.decode('utf-8').strip())
+        if (shotID == 0):
+            result = self.getShotFile(0, "shot_no")
+            shotID = int(result.decode('utf-8').strip())
 
         path_parts = [p for p in str(fileName).replace("\\", "/").split("/") if p not in ("", ".", "..")]
         fileName = "/".join(path_parts)
@@ -34,10 +35,18 @@ class _GolemCLIENTbase:
 
         cache_key = (shotID, fileName)
         if cache_key in self._cache:
+            data = self._cache[cache_key]
+            if data is _MISSING:
+                if self.verbose: print(f"[DEBUG] Returning cached MISSING for file '{fileName}' of shot {shotID}")
+                raise FileNotFoundError(f"File '{fileName}' not found for shot {shotID}.")
             if self.verbose: print(f"[DEBUG] Returning cached file '{fileName}' for shot {shotID}")
-            return self._cache[cache_key]
+            return data
 
-        data = self.getShotFile(shotID, fileName)
+        try:
+            data = self.getShotFile(shotID, fileName)
+        except FileNotFoundError:
+            self._cache[cache_key] = _MISSING
+            raise
         self._cache[cache_key] = data
         if self.verbose: print(f"[DEBUG] Cached file '{fileName}' for shot {shotID}")
         return data
@@ -83,12 +92,16 @@ class GolemCLIENThttp(_GolemCLIENTbase):
                 with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
                     return response.read()
             except urllib.error.HTTPError as e:
-                if e.code != 404:
-                    raise e
+                if e.code == 404:
+                    raise FileNotFoundError(f"File '{fileName}' not found for shot {shotID}.") from e
+                if e.code < 500:
+                    raise e  # Client error (4xx), do not retry 
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                pass
                 if attempt < HTTP_ATTEMPTS - 1:
                     if self.verbose:
                         print(f"[DEBUG] Attempt {attempt + 1} failed for file '{fileName}' of shot {shotID}. Retrying...")
-                    time.sleep(1)  # Wait a bit before retrying
+                    time.sleep(0.5 * (2 ** attempt))  # Wait a bit before retrying
                     continue
                 #if e.code == 404:
                 raise FileNotFoundError(f"File '{fileName}' not found for shot {shotID}.")

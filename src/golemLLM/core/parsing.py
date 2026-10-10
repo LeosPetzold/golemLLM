@@ -108,7 +108,7 @@ class GolemSHOT:
         else:
             raise ValueError("Could not find the measured Bt capacitor voltage in the index.html file.")
     @property
-    def t_bt_request_us(self) -> int:
+    def t_bt_request_us(self) -> float:
         """Requested Bt discharge time [µs]"""
         return self.simUTF8f("Operation/Discharge/t_bt_discharge_request")
 
@@ -127,7 +127,7 @@ class GolemSHOT:
         else:
             raise ValueError("Could not find the measured CD capacitor voltage in the index.html file.")
     @property
-    def t_cd_request_us(self) -> int:
+    def t_cd_request_us(self) -> float:
         """Requested CD discharge time [µs]"""
         return self.simUTF8f("Operation/Discharge/t_cd_discharge_request")
 
@@ -140,39 +140,39 @@ class GolemSHOT:
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/b_plasma") == 1.0
     @property
     def t_plasma_duration_ms(self) -> float:
-        """Plasma duration [ms], null without plasma"""
+        """Plasma duration [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_duration"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     @property
     def t_plasma_start_ms(self) -> float:
-        """Plasma start time [ms], null without plasma"""
+        """Plasma start time [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_start"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     @property
     def t_plasma_end_ms(self) -> float:
-        """Plasma end time [ms], null without plasma"""
+        """Plasma end time [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_end"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     @property
     def t_plasma_flattop_duration_ms(self) -> float:
-        """Plasma flattop duration [ms], null without plasma"""
+        """Plasma flattop duration [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_duration"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     @property
     def t_plasma_flattop_start_ms(self) -> float:
-        """Plasma flattop start time [ms], null without plasma"""
+        """Plasma flattop start time [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_start"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     @property
     def t_plasma_flattop_end_ms(self) -> float:
-        """Plasma flattop end time [ms], null without plasma"""
+        """Plasma flattop end time [ms], NaN without plasma"""
         return self.simUTF8f("Diagnostics/PlasmaDetection/Results/t_plasma_qs_end"
-                             ) if self.bool_plasma else float('null')
+                             ) if self.bool_plasma else float('nan')
 
     #endregion
     #region Plasma parameters
@@ -188,10 +188,12 @@ class GolemSHOT:
     @property
     def U_plasma_loop_breakdown_V(self) -> float:
         """Plasma loop voltage breakdown [V], regardless of plasma"""
-        return self.simUTF8f(
+        try: result = self.simUTF8f(
             "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown") if client.shotProbeHEAD(
                 "Diagnostics/BasicDiagnostics/Results/U_loop_breakdown"
-            ) else float('null'); # Usually not available
+            ) else float('nan') # Usually not available
+        except FileNotFoundError: result = float('nan') # Usually not available
+        return result
 
     #endregion
     #region On stage diagnostics
@@ -224,6 +226,7 @@ class GolemSHOT:
 
 from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
 
-client = GolemCLIENThttp(cache=True, verbose=True)
-#client = GolemCLIENTlocal("/media/user/flashdisk/shots/", cache=True, verbose=True)
-shot = GolemSHOT(53202, client)
+if __name__ == "__main__":
+    client = GolemCLIENThttp(cache=True, verbose=True)
+    #client = GolemCLIENTlocal("/media/user/flashdisk/shots/", cache=True, verbose=True)
+    shot = GolemSHOT(53202, client)
