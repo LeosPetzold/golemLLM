@@ -214,17 +214,3 @@ class GolemSHOT:
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ich.csv")
 
     #endregion
-
-
-    
-
-
-
-# Testing
-
-from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
-
-if __name__ == "__main__":
-    client = GolemCLIENThttp(cache=True, verbose=True)
-    #client = GolemCLIENTlocal("/media/user/flashdisk/shots/", cache=True, verbose=True)
-    shot = GolemSHOT(53202, client)

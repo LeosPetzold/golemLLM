@@ -245,7 +245,7 @@ class DiagnosticsStripDetector(Section):
 
 #region Proposal
 @frozen
-class GOLEMproposal:
+class GolemPROPOSAL:
     # required
     discharge:  OperationDischarge
     bt_ecd:     InfrastructureBtEcd
