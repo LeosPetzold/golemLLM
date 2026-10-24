@@ -293,7 +293,7 @@ class GolemPROPOSAL:
             out["ScanDefinition"] = self.ScanDefinition
         return out
 
-    def diff(self, other: "GOLEMproposal") -> list[dict]:
+    def diff(self, other: "GolemPROPOSAL") -> list[dict]:
         a, b = self.flat(), other.flat()
         keys = list(a) + [k for k in b if k not in a]
         return [{"param": k, "previous": b.get(k), "proposed": a.get(k)}
