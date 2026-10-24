@@ -1,0 +1,181 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GOLEM shot proposal</title>
+<style>
+    :root {
+        color-scheme: light dark;
+        font: 14px system-ui, sans-serif;
+    }
+
+    body {
+        margin: 12px;
+    }
+
+    h3 {
+        margin: 0 0 6px;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 8px;
+    }
+
+    th,
+    td {
+        text-align: left;
+        padding: 4px 8px;
+        border-bottom: 1px solid #8884;
+    }
+
+    td {
+        font-family: ui-monospace, monospace;
+    }
+
+    td.proposed {
+        font-weight: 600;
+    }
+
+    .muted {
+        opacity: .7;
+    }
+
+    .warn {
+        color: #b45309;
+    }
+
+    .bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 12px;
+    }
+
+    button {
+        padding: 6px 14px;
+        font: inherit;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+</style>
+
+<h3 id="title">Waiting for a proposal…</h3>
+<div id="reason"></div>
+<div id="note" class="warn"></div>
+<table>
+    <thead>
+        <tr>
+            <th>Parameter</th>
+            <th>Previous</th>
+            <th>Proposed</th>
+        </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+</table>
+<details>
+    <summary>Command</summary>
+    <pre id="cmd"></pre>
+</details>
+<div class="bar">
+    <button id="submit" disabled>Submit to tokamak</button>
+    <button id="reject" disabled>Reject</button>
+    <span id="status" class="muted"></span>
+</div>
+
+<script>
+    // everything from the model goes through textContent, never innerHTML
+    const host = window.parent;
+    const calls = new Map();
+    const $ = (id) => document.getElementById(id);
+    let nextId = 2, data = null, token = null, used = false, deadline = 0;
+
+    const send = (msg) => host.postMessage({ jsonrpc: "2.0", ...msg }, "*");
+    const request = (method, params) => new Promise((resolve, reject) => {
+        const id = nextId++;
+        calls.set(id, { resolve, reject });
+        send({ id, method, params });
+    });
+    const status = (text) => { $("status").textContent = text; };
+    const show = (v) => (v === null || v === undefined ? "—" : String(v));
+    const cell = (tr, text, cls) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        if (cls) td.className = cls;
+        tr.append(td);
+    };
+
+    window.addEventListener("message", (event) => {
+        const m = event.data;
+        if (event.source !== host || m?.jsonrpc !== "2.0") return;
+        if (m.id === 1) { send({ method: "ui/notifications/initialized" }); return; }
+        if (m.id !== undefined && calls.has(m.id)) {
+            const { resolve, reject } = calls.get(m.id);
+            calls.delete(m.id);
+            if (m.error) reject(new Error(m.error.message)); else resolve(m.result);
+            return;
+        }
+        if (m.method === "ui/resource-teardown") send({ id: m.id, result: {} });
+        if (m.method === "ui/notifications/tool-result") render(m.params);
+    });
+
+    function render(result) {
+        data = result.structuredContent;
+        token = result._meta?.approvalToken ?? null;
+        if (!data) return;
+        $("title").textContent = `Proposal compared with shot ${data.compared_to}` +
+            (data.replaced_previous ? " (replaces your earlier proposal)" : "");
+        $("reason").textContent = data.reason;
+        $("note").textContent = data.note ?? "";
+        $("cmd").textContent = data.command;
+        const body = $("rows");
+        body.replaceChildren();
+        for (const r of data.rows) {
+            const tr = document.createElement("tr");
+            cell(tr, r.param);
+            cell(tr, show(r.previous), "muted");
+            cell(tr, show(r.proposed), "proposed");
+            body.append(tr);
+        }
+        $("submit").disabled = $("reject").disabled = !token;
+        if (token) deadline = Date.now() + data.ttl_s * 1000;
+        else status("No approval token received: run the command by hand.");
+    }
+
+    async function act(tool) {
+        if (used) return;
+        used = true;
+        $("submit").disabled = $("reject").disabled = true;
+        status("Working…");
+        try {
+            const r = await request("tools/call", {
+                name: tool, arguments: { proposal_id: data.proposal_id, approval_token: token }
+            });
+            const text = (r.content ?? []).map((c) => c.text ?? "").join(" ");
+            status(r.isError ? `Failed: ${text}` : text);
+        } catch (err) {
+            status(`Failed: ${err.message}`);
+        }
+    }
+    $("submit").onclick = () => act("submit_shot");
+    $("reject").onclick = () => act("cancel_shot");
+
+    setInterval(() => {
+        if (!deadline || used) return;
+        const left = Math.round((deadline - Date.now()) / 1000);
+        if (left <= 0) {
+            used = true;
+            $("submit").disabled = $("reject").disabled = true;
+            status("Expired: ask for a new proposal.");
+        } else status(`Valid for ${left} s`);
+    }, 1000);
+
+    send({
+        id: 1, method: "ui/initialize", params: {
+            appInfo: { name: "golem-proposal", version: "1.0.0" },
+            appCapabilities: {}, protocolVersion: "2026-01-26"
+        }
+    });
+</script>

@@ -1,1 +1,1 @@
-python3 -i -m golemLLM.core.parsing
+python3 -i -m golemLLM.test

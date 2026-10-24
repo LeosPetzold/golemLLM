@@ -69,11 +69,12 @@ class GolemSHOT:
     @property
     def command_classical(self):
         """Classical form shot command"""
-        _, _, result = self.simUTF8s("Production/Parameters/FullCommandLine") .partition(
-            "Classical command line form:\n========================\n\n")
-        if not result:
-            raise ValueError("Could not find the classical form shot command in the FullCommandLine file.")
-        return result.strip()
+        return self.simUTF8s("Production/Parameters/CommandLine")
+    #    _, _, result = self.simUTF8s("Production/Parameters/FullCommandLine") .partition(
+    #        "Classical command line form:\n========================\n\n")
+    #    if not result:
+    #        raise ValueError("Could not find the classical form shot command in the FullCommandLine file.")
+    #    return result.strip()
 
     #endregion
     #region Technological parameters

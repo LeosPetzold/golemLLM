@@ -6,10 +6,14 @@ from enum import Enum, Flag
 from functools import partial
 from typing import ClassVar, Optional
 
+import shlex
+from golemLLM.core.parsing import GolemSHOT
+from typing import get_type_hints, get_args
+
 # syntax from http://golem.fjfi.cvut.cz/shotdir/54395/Operation/Discharge/Styles/index.html
 # execute via Dirigent.sh --discharge <args>  (http://golem.fjfi.cvut.cz/shotdir/54599/Dirigent.sh)
 
-_SAFE_TEXT = re.compile(r"[A-Za-z0-9 _.,:()+/-]{1,200}")
+_SAFE_TEXT = re.compile(r"[A-Za-z0-9 _.,:()\#+/-]{1,2000}")
 
 # immutable, validated at construction
 frozen = partial(dataclass, frozen=True, kw_only=True)
@@ -243,7 +247,7 @@ class DiagnosticsStripDetector(Section):
 #endregion
 
 
-#region Proposal
+#region Proposal class
 @frozen
 class GolemPROPOSAL:
     # required
@@ -284,7 +288,7 @@ class GolemPROPOSAL:
         return argv
 
     def to_command(self) -> str:
-        return " ".join(a if a.startswith("--") else f'"{a}"' for a in self.to_argv())
+        return "./Dirigent.sh " + " ".join(a if a.startswith("--") else f'"{a}"' for a in self.to_argv())
 
     def flat(self) -> dict[str, object]:
         out = {f"{s.SECTION}.{k}": _plain(v) for s in self.sections() for k, v in s.items()}
@@ -300,7 +304,120 @@ class GolemPROPOSAL:
                 for k in keys if a.get(k) != b.get(k)]
 #endregion
 
+#region Parsing from command to proposal
+class GolemPROPOSALparser:
+    def __init__(self, client): 
+        self.client = client
 
+    # Utility logic
+
+    def _unwrap(self, tp):  # Optional[X] -> X; X -> X  # fix: `type` shadowed the builtin
+        return next((a for a in get_args(tp) if a is not type(None)), tp)
+
+    def _parse(self, tp, raw):  # parse string into type  # fix: same rename
+        raw = raw.strip("'")  # remove quotes for string-like sub-arguments
+        if tp is PinMask:
+            return PinMask(int(raw[::-1], 2)) # reverse string to match P1 leftmost  # fix: parentheses
+        if tp is Waveform:
+            return Waveform(tuple(tuple(map(float, p.split(","))) for p in raw.split(";")))
+        if issubclass(tp, Enum):
+            return tp(type(next(iter(tp)).value)(raw))
+        return tp(raw)  # int, float, string
+    
+    # Section logic
+
+    _PAIR_REGEX_C = re.compile(r"(\w+)=('[^']*'|[^,]*)")  # key=value; commas inside '...' (waveforms) are kept
+
+    def _OVERRIDE_workinggas(self, pairs):
+        def _need(pairs, key):  # required sub-argument of working gas, quotes removed
+            if key not in pairs:
+                raise ValueError(f"infrastructure.workinggas: missing '{key}' for S_mode "
+                                    f"'{pairs.get('S_mode')}' (found: {', '.join(pairs) or 'nothing'})")
+            return pairs[key].strip("'")
+        
+        mode = pairs.get("S_mode", "").strip("'")
+        match mode:
+            case "vacuum":
+                return WorkingGasVacuum(S_gas=WorkingGas(_need(pairs, "S_gas")))
+            case "p_wg" | "p_wg-zc" | "p_wg-nzc" | "p_pid":
+                return WorkingGasPressure(
+                    S_mode=PressureMode(mode),
+                    S_gas=WorkingGas(_need(pairs, "S_gas")),
+                    p_H=float(_need(pairs, "p_H")), )
+            case "U_v":
+                return WorkingGasValveVoltage(
+                    S_gas=WorkingGas(_need(pairs, "S_gas")),
+                    U_v=float(_need(pairs, "U_v")), )
+            case _:
+                raise ValueError(f"Unknown working gas S_mode: '{mode}' (found: {', '.join(pairs) or 'nothing'})")
+
+    _EXCLUSION = {"infrastructure.workinggas"}  # _EXCLUSION items need special handling
+    _EXCLUSION_OVERRIDES = {
+        "infrastructure.workinggas": _OVERRIDE_workinggas
+    }
+    _SECTIONS = {cl.SECTION: cl for cl in Section.__subclasses__()}
+
+    def _section(self, section: str, body: str):
+        pairs = dict(self._PAIR_REGEX_C.findall(body))
+
+        if section in self._EXCLUSION:
+            return self._EXCLUSION_OVERRIDES[section](self, pairs)
+        elif section in self._SECTIONS:
+            cls = self._SECTIONS[section]  # `cls` means class
+        else:
+            raise ValueError(f"Unknown section: {section}")
+        
+        hints = get_type_hints(cls)
+
+        kwargs = {}  # keyword arguments
+        for f in fields(cls):
+            if f.name not in pairs: continue  # field not in command?
+            value = self._parse(self._unwrap(hints[f.name]), pairs.pop(f.name))  # parse into real type
+            if f.init:
+                kwargs[f.name] = value
+            elif value != f.default:
+                raise ValueError(f"Field {f.name} is not init=True but has non-default value {value}")
+        if pairs:  # recognized fields are popped, remains are unknown
+            leftover = ", ".join(f"{k}={v}" for k, v in pairs.items())
+            raise ValueError(f"Unknown fields for {cls.SECTION}: {leftover}")
+
+        return cls(**kwargs)
+
+    # Overhead logic
+
+    def parse(self, shotID: int) -> GolemPROPOSAL:
+        shot = GolemSHOT(shotID, self.client)
+        text = shot.command_classical
+        command = re.sub(r"\\[ \t]*\n", " ", text)  # Remove line continuations
+
+        argv = shlex.split(command)
+        argv = argv[argv.index("--discharge") + 1:]  # skip leading ./Dirigent.sh & --discharge
+        if len(argv) % 2:
+            raise ValueError(f"Option {argv[-1]} has no value (trailing option in command).")
+
+        kwargs = {}  # keyword arguments
+
+        NON_SECTION_ARGUMENTS = {"comment", "ScanDefinition"}
+
+        # Handle data
+        for flag, value in zip(argv[::2], argv[1::2]):
+            name = flag.removeprefix("--")
+            if name in NON_SECTION_ARGUMENTS:
+                kwargs[name] = value
+            else:
+                kwargs[name.split(".")[-1]] = self._section(name, value)
+
+        # Handle non-optional data (extra)
+        for required in { "discharge", "bt_ecd", "workinggas", "comment"}:
+            if required not in kwargs:  # fix: a missing key raised KeyError, never reached the ValueError
+                raise ValueError(f"Required parameter {required} not found in command to parse to proposal object.")
+            #kwargs[required] = kwargs[required] if kwargs[required] else raise ValueError("")
+        #kwargs["comment"] = kwargs["comment"] if kwargs["comment"] is not None else "/NO COMMENT/"  # fix: kwags -> kwargs
+        
+        return GolemPROPOSAL(**kwargs)
+#endregion
+
+#region Helpers
 def _fmt(v) -> str:
     if isinstance(v, (Waveform, PinMask)):
         return f"'{v}'"
@@ -318,3 +435,4 @@ def _plain(v):
     if isinstance(v, Enum):
         return v.value
     return v
+#endregion
