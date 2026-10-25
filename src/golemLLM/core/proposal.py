@@ -1,4 +1,5 @@
 # Proposing function
+# Operators will be questioned about parameters tagged with '# ?'.
 
 import re
 from dataclasses import dataclass, field, fields
@@ -24,6 +25,7 @@ class DischargeStyle(Enum):
     STANDARD                       = 'standard'
     STANDARD_WITH_STABILIZATION    = 'standard-ws'  # from Dirigent.sh -d shortcuts
     STANDARD_WITHOUT_STABILIZATION = 'standard-wos'
+    REMOTE    = 'remote'  # ?
     MODEST    = 'modest'
     HIGH_BT   = 'highBt'
     FULLSTEAM = 'fullsteam'
@@ -62,11 +64,13 @@ class PinMask(Flag):  # any combination of 12 pins; other values are rejected by
 
     def __str__(self) -> str:
         return format(self.value, "012b")[::-1]  # formats as binary with P1 being leftmost
+
 #endregion
 
 #region Value types
-Millimetres = float
-Degrees     = float
+class sfloat(float): pass
+class Millimetres(float): pass
+Degrees = float
 PerCent     = int  # unit unverified
 
 @dataclass(frozen=True)
@@ -90,7 +94,7 @@ def bounded(lo=None, hi=None, **kw):
     # interval stored on the field; None = unbounded
     # The bounded field type is, however enforced, not a security measure and only aids in 
     # pointing the AI in the right direction, giving it a sense of scope.
-    # Limits are enforced by Dirigent systems
+    # Limits are enforced by Dirigent systems.
     return field(metadata={"lo": lo, "hi": hi}, **kw)
 #endregion
 
@@ -115,6 +119,16 @@ class OperationDischarge(Section):
     SECTION: ClassVar[str] = "operation.discharge"
     style:       DischargeStyle
     vacuum_shot: Optional[int] = None
+    # Upon further investigation of latest documented Dirigent.sh usage I have found
+    # that OperationHigherPower parameters are a part of the operation.discharge section,
+    # thus the parameters are mirrored here, manually.  # ?
+    voice:                Optional[Toggle] = None
+    wg_voice:             Optional[Toggle] = None
+    RawDataAcquiring:     Optional[Toggle] = None
+    analysis:             Optional[Toggle] = None
+    diagnostics_onstage:  Optional[Toggle] = None
+    diagnostics_offstage: Optional[Toggle] = None
+    infrastructure:       Optional[Toggle] = None
 
 
 @frozen
@@ -132,15 +146,15 @@ class OperationHigherPower(Section):
 @frozen
 class InfrastructureBtEcd(Section):
     SECTION: ClassVar[str] = "infrastructure.bt_ecd"
-    S_mode: str = field(default="time", init=False)
+    S_mode: Optional[str] = None
     U_cd:   int = bounded(0, 900)  # V
     U_Bt:   int = bounded(0, 1200)  # V
     t_Bt:   int = bounded(0, 10000)  # us
     t_cd:   int = bounded(0, 10000)  # us
     O_Bt:   AngularDirection
     O_cd:   AngularDirection
-    Cht_bt: int
-    Cht_cd: int
+    Cht_bt: Optional[int] = None
+    Cht_cd: Optional[int] = None
 
 
 @frozen
@@ -272,11 +286,11 @@ class GolemPROPOSAL:
     positionstabilization:  Optional[InfrastructurePositionStabilization] = None
     biasingelectrode:       Optional[InfrastructureBiasingElectrode] = None
     gasspuffing:            Optional[InfrastructureGasPuffing] = None
+    doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
     currentstabilization:   Optional[InfrastructureCurrentStabilization] = None
 
     doublerakeprobe:        Optional[DiagnosticsDoubleRakeProbe] = None
     rakeprobe:              Optional[DiagnosticsRakeProbe] = None
-    doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
     limitermirnovcoils:     Optional[DiagnosticsLimiterMirnovCoils] = None
     scintillationprobes:    Optional[DiagnosticsScintillationProbes] = None
     stripdetector:          Optional[DiagnosticsStripDetector] = None
@@ -431,15 +445,22 @@ class GolemPROPOSALparser:
         return GolemPROPOSAL(**kwargs)
 #endregion
 
-#region Helpers
+#region Rulesets, helpers
 def _fmt(v) -> str:
+    if isinstance(v, Millimetres):
+        return f"'{v:g}'"
     if isinstance(v, (Waveform, PinMask)):
         return f"'{v}'"
     if isinstance(v, Enum):
         return f"'{v.value}'" if isinstance(v.value, str) else str(v.value)
     if isinstance(v, str):
         return f"'{v}'"
+    if isinstance(v, sfloat):
+        return f"'{v:g}'"
     if isinstance(v, float):
+        return f"{v:g}"
+    metadata = getattr(v, "metadata", None)
+    if metadata is not None and (metadata.lo is not None or metadata.hi is not None):
         return f"{v:g}"
     return str(v)
 
