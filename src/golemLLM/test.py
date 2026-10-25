@@ -4,25 +4,22 @@ from golemLLM.core.proposal import GolemPROPOSAL, GolemPROPOSALparser
 
 print("Running tests...")
 
-CLIENT = GolemCLIENThttp(verbose=True)
+CLIENT = GolemCLIENThttp(verbose=False)
 PARSER = GolemPROPOSALparser(CLIENT)
 
-from difflib import ndiff
-
-for i in range(54500, 54599):
+for i in range(35880, 35880+15):
+    #import time; time.sleep(5)  # GOLEM.fjfi.cvut.cz is a public resource and should be treated with care; honor operators' will to give out valuable data to the public.
     print(f"Testing proposal {i}")
+    
     shot = GolemSHOT(i, CLIENT)
 
     text1 = repr(shot.command_classical)
-    text2 = repr(PARSER.parse(shot.command_classical).to_command())
+    
+    try: 
+        text2 = repr(PARSER.parse(shot.command_classical).to_command())
+    except Exception as e:
+        print(f"Error parsing proposal {i}: {e}")
+        text2 = "Error"
 
-    diff = ndiff(text1, text2);
-
-    missing_chars = [delta[2:] for delta in diff if delta.startswith('- ')]
-
-    missing_string = "".join(missing_chars)
-
-    if missing_string:
-        print(f"Shot {i} missing: {missing_string}")
-    else:
-        print(f"Shot {i}: No difference")
+    with open(f"../tests/test_{i}.txt", "w") as f:
+        f.write(text1 + "\n\n" + text2)

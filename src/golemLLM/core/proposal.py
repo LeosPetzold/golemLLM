@@ -14,7 +14,7 @@ from typing import get_type_hints, get_args
 # syntax from http://golem.fjfi.cvut.cz/shotdir/54395/Operation/Discharge/Styles/index.html
 # execute via Dirigent.sh --discharge <args>  (http://golem.fjfi.cvut.cz/shotdir/54599/Dirigent.sh)
 
-_SAFE_TEXT = re.compile(r"[A-Za-z0-9 _.,:()\#+/-]{1,2000}")
+_SAFE_TEXT = re.compile(r"[A-Za-z0-9 _.,:=()\#+/-]{1,2000}")
 
 # immutable, validated at construction
 frozen = partial(dataclass, frozen=True, kw_only=True)
@@ -168,28 +168,12 @@ class InfrastructurePreionization(Section):
 
 # working gas to be one class per mode
 @frozen
-class WorkingGasVacuum(Section):
+class WorkingGasRequest(Section):
     SECTION: ClassVar[str] = "infrastructure.workinggas"
-    S_mode: str = field(default="vacuum", init=False)
+    S_mode: str
     S_gas:  WorkingGas
-    p_H:    float = field(default=0, init=False)  # mPa
-    U_v:    float = field(default=0, init=False)  # V
-@frozen
-class WorkingGasPressure(Section):
-    SECTION: ClassVar[str] = "infrastructure.workinggas"
-    S_mode: PressureMode
-    S_gas:  WorkingGas
-    p_H:    float = bounded(0, 100)  # mPa
-    U_v:    float = field(default=0, init=False)  # V
-@frozen
-class WorkingGasValveVoltage(Section):
-    SECTION: ClassVar[str] = "infrastructure.workinggas"
-    S_mode: str = field(default="U_v", init=False)
-    S_gas:  WorkingGas
-    p_H:    float = field(default=0, init=False)  # mPa
-    U_v:    float  # V
-
-WorkingGasRequest = WorkingGasVacuum | WorkingGasPressure | WorkingGasValveVoltage
+    p_H:    Optional[float] = field(default=0)  # mPa
+    U_v:    Optional[float] = field(default=0)  # V
 
 
 @frozen
@@ -212,7 +196,7 @@ class InfrastructureBiasingElectrode(Section):
 
 @frozen
 class InfrastructureGasPuffing(Section):
-    SECTION: ClassVar[str] = "infrastructure.gasspuffing"
+    SECTION: ClassVar[str] = "infrastructure.gaspuffing"
     waveform: Waveform
 
 
@@ -226,7 +210,8 @@ class InfrastructureCurrentStabilization(Section):
 @frozen
 class DiagnosticsRakeProbe(Section):
     SECTION: ClassVar[str] = "diagnostics.rakeprobe"
-    r_First_Tip:     Optional[Millimetres] = bounded(hi=100, default=None)  # %
+    r_First_Tip:     Optional[Millimetres] = bounded(hi=100, default=None)
+    r_first_fip:     Optional[Millimetres] = bounded(hi=100, default=None)
     phi_First_Tip:   Optional[Degrees] = None
     X_mod:           Optional[PinMask] = None
     I_SilverBox:     Optional[float] = None
@@ -236,15 +221,15 @@ class DiagnosticsRakeProbe(Section):
 @frozen
 class DiagnosticsDoubleRakeProbe(Section):
     SECTION: ClassVar[str] = "diagnostics.doublerakeprobe"
-    r_First_Tip: Optional[Millimetres] = bounded(hi=100, default=None)  # wall at ~100 mm ?
+    r_first_tip: Optional[Millimetres] = bounded(hi=160, default=None)  # wall at ~160 mm ?
     X_mod:       Optional[PinMask] = None
-    I_SilverBox: Optional[float] = None
+    I_SilverBox: Optional[float] = bounded(hi=12, default=None)  # A
 
 
 @frozen
 class DiagnosticsDoubleLangballPenProbe(Section):
     SECTION: ClassVar[str] = "diagnostics.doublelangballpenprobe"
-    r_lp_tip:    Optional[Millimetres] = bounded(hi=130, default=None)  # wall at ~130 mm ?
+    r_lp_tip:    Optional[Millimetres] = bounded(hi=160, default=None)  # wall at ~160 mm ?
 
 
 @frozen
@@ -334,7 +319,7 @@ class GolemPROPOSAL:
 
 
 #region Parsing from command to proposal
-class GolemPROPOSALparser:
+class GolemPROPOSALparserOBSOLETE:
     def __init__(self, client): 
         self.client = client
 
@@ -357,33 +342,8 @@ class GolemPROPOSALparser:
 
     _PAIR_REGEX_C = re.compile(r"(\w+)=('[^']*'|[^,]*)")  # key=value; commas inside '...' (waveforms) are kept
 
-    def _OVERRIDE_workinggas(self, pairs):
-        def _need(pairs, key):  # required sub-argument of working gas, quotes removed
-            if key not in pairs:
-                raise ValueError(f"infrastructure.workinggas: missing '{key}' for S_mode "
-                                    f"'{pairs.get('S_mode')}' (found: {', '.join(pairs) or 'nothing'})")
-            return pairs[key].strip("'")
-        
-        mode = pairs.get("S_mode", "").strip("'")
-        match mode:
-            case "vacuum":
-                return WorkingGasVacuum(S_gas=WorkingGas(_need(pairs, "S_gas")))
-            case "p_wg" | "p_wg-zc" | "p_wg-nzc" | "p_pid":
-                return WorkingGasPressure(
-                    S_mode=PressureMode(mode),
-                    S_gas=WorkingGas(_need(pairs, "S_gas")),
-                    p_H=float(_need(pairs, "p_H")), )
-            case "U_v":
-                return WorkingGasValveVoltage(
-                    S_gas=WorkingGas(_need(pairs, "S_gas")),
-                    U_v=float(_need(pairs, "U_v")), )
-            case _:
-                raise ValueError(f"Unknown working gas S_mode: '{mode}' (found: {', '.join(pairs) or 'nothing'})")
-
-    _EXCLUSION = {"infrastructure.workinggas"}  # _EXCLUSION items need special handling
-    _EXCLUSION_OVERRIDES = {
-        "infrastructure.workinggas": _OVERRIDE_workinggas
-    }
+    _EXCLUSION = {}  # _EXCLUSION items need special handling
+    _EXCLUSION_OVERRIDES = {}  # str : function(self, pairs)
     _SECTIONS = {cl.SECTION: cl for cl in Section.__subclasses__()}
 
     def _section(self, section: str, body: str):
