@@ -30,4 +30,3 @@ GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VER
 
 logging.basicConfig(level=logging.INFO)
 
-
