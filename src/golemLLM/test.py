@@ -7,24 +7,22 @@ print("Running tests...")
 CLIENT = GolemCLIENThttp(verbose=True)
 PARSER = GolemPROPOSALparser(CLIENT)
 
-from difflib import unified_diff
+from difflib import ndiff
 
 for i in range(54500, 54599):
     print(f"Testing proposal {i}")
     shot = GolemSHOT(i, CLIENT)
 
-    dif1 = repr(shot.command_classical)
-    dif2 = repr(PARSER.parse(shot.command_classical).to_command())
+    text1 = repr(shot.command_classical)
+    text2 = repr(PARSER.parse(shot.command_classical).to_command())
 
-    diff = list(unified_diff(
-        dif1.splitlines(), 
-        dif2.splitlines(), 
-        fromfile='classical', 
-        tofile='parsed', 
-        lineterm=''
-    ))
+    diff = ndiff(text1, text2);
 
-    if diff:
-        print(f"Shot {i} difference:\n" + "\n".join(diff))
+    missing_chars = [delta[2:] for delta in diff if delta.startswith('- ')]
+
+    missing_string = "".join(missing_chars)
+
+    if missing_string:
+        print(f"Shot {i} missing: {missing_string}")
     else:
         print(f"Shot {i}: No difference")
