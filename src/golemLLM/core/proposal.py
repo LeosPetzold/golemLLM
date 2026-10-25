@@ -64,7 +64,6 @@ class PinMask(Flag):  # any combination of 12 pins; other values are rejected by
         return format(self.value, "012b")[::-1]  # formats as binary with P1 being leftmost
 #endregion
 
-
 #region Value types
 Millimetres = float
 Degrees     = float
@@ -91,7 +90,6 @@ def bounded(lo=None, hi=None, **kw):
     # interval stored on the field; None = unbounded
     return field(metadata={"lo": lo, "hi": hi}, **kw)
 #endregion
-
 
 #region Sections
 @frozen
@@ -131,12 +129,15 @@ class OperationHigherPower(Section):
 @frozen
 class InfrastructureBtEcd(Section):
     SECTION: ClassVar[str] = "infrastructure.bt_ecd"
-    U_Bt: int = bounded(0, 1200)  # V
-    t_Bt: int
-    O_Bt: AngularDirection
-    U_cd: int = bounded(0, 900)  # V
-    t_cd: int = bounded(0, 10000)  # us
-    O_cd: AngularDirection
+    S_mode: str = field(default="time", init=False)
+    U_Bt:   int = bounded(0, 1200)  # V
+    t_Bt:   int
+    O_Bt:   AngularDirection
+    U_cd:   int = bounded(0, 900)  # V
+    t_cd:   int = bounded(0, 10000)  # us
+    O_cd:   AngularDirection
+    Cht_bt: int
+    Cht_cd: int
 
 
 @frozen
@@ -206,9 +207,14 @@ class InfrastructureCurrentStabilization(Section):
 @frozen
 class DiagnosticsDoubleRakeProbe(Section):
     SECTION: ClassVar[str] = "diagnostics.doublerakeprobe"
-    r_First_Tip: Optional[Millimetres] = bounded(hi=100, default=None)  # wall at ~100 mm
+    r_First_Tip: Optional[Millimetres] = bounded(hi=100, default=None)  # wall at ~100 mm ?
     X_mod:       Optional[PinMask] = None
     I_SilverBox: Optional[float] = None
+
+@frozen
+class DiagnosticsDoubleLangballPenProbe(Section):
+    SECTION: ClassVar[str] = "diagnostics.doublelangballpenprobe"
+    r_lp_tip:    Optional[Millimetres] = bounded(hi=130, default=None)  # wall at ~130 mm ?
 
 
 @frozen
@@ -246,7 +252,6 @@ class DiagnosticsStripDetector(Section):
     acq_mode:  Optional[StripDetectorMode] = None
 #endregion
 
-
 #region Proposal class
 @frozen
 class GolemPROPOSAL:
@@ -257,18 +262,19 @@ class GolemPROPOSAL:
     comment:    str
 
     # optional, None means argument not in command
-    higherpower:           Optional[OperationHigherPower] = None
-    preionization:         Optional[InfrastructurePreionization] = None
-    positionstabilization: Optional[InfrastructurePositionStabilization] = None
-    biasingelectrode:      Optional[InfrastructureBiasingElectrode] = None
-    gasspuffing:           Optional[InfrastructureGasPuffing] = None
-    currentstabilization:  Optional[InfrastructureCurrentStabilization] = None
-    doublerakeprobe:       Optional[DiagnosticsDoubleRakeProbe] = None
-    rakeprobe:             Optional[DiagnosticsRakeProbe] = None
-    limitermirnovcoils:    Optional[DiagnosticsLimiterMirnovCoils] = None
-    scintillationprobes:   Optional[DiagnosticsScintillationProbes] = None
-    stripdetector:         Optional[DiagnosticsStripDetector] = None
-    ScanDefinition:        Optional[str] = None
+    higherpower:            Optional[OperationHigherPower] = None
+    preionization:          Optional[InfrastructurePreionization] = None
+    positionstabilization:  Optional[InfrastructurePositionStabilization] = None
+    biasingelectrode:       Optional[InfrastructureBiasingElectrode] = None
+    gasspuffing:            Optional[InfrastructureGasPuffing] = None
+    currentstabilization:   Optional[InfrastructureCurrentStabilization] = None
+    doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
+    doublerakeprobe:        Optional[DiagnosticsDoubleRakeProbe] = None
+    rakeprobe:              Optional[DiagnosticsRakeProbe] = None
+    limitermirnovcoils:     Optional[DiagnosticsLimiterMirnovCoils] = None
+    scintillationprobes:    Optional[DiagnosticsScintillationProbes] = None
+    stripdetector:          Optional[DiagnosticsStripDetector] = None
+    ScanDefinition:         Optional[str] = None
 
     def __post_init__(self):  # safe valid characters?
         texts = [self.comment] + ([] if self.ScanDefinition is None else [self.ScanDefinition])
@@ -303,6 +309,7 @@ class GolemPROPOSAL:
         return [{"param": k, "previous": b.get(k), "proposed": a.get(k)}
                 for k in keys if a.get(k) != b.get(k)]
 #endregion
+
 
 #region Parsing from command to proposal
 class GolemPROPOSALparser:
@@ -385,9 +392,8 @@ class GolemPROPOSALparser:
 
     # Overhead logic
 
-    def parse(self, shotID: int) -> GolemPROPOSAL:
-        shot = GolemSHOT(shotID, self.client)
-        text = shot.command_classical
+    def parse(self, command_classical: str) -> GolemPROPOSAL:
+        text = command_classical
         command = re.sub(r"\\[ \t]*\n", " ", text)  # Remove line continuations
 
         argv = shlex.split(command)
