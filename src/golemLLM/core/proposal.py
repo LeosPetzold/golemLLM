@@ -2,6 +2,7 @@
 # Operators will be questioned about parameters tagged with '# ?'.
 
 import re
+from golemLLM.core.types import bounded, Millimetres, Degrees, Waveform, sfloat
 from dataclasses import dataclass, field, fields
 from enum import Enum, Flag
 from functools import partial
@@ -68,34 +69,9 @@ class PinMask(Flag):  # any combination of 12 pins; other values are rejected by
 #endregion
 
 #region Value types
-class sfloat(float): pass
-class Millimetres(float): pass
-Degrees = float
-PerCent     = int  # unit unverified
 
-@dataclass(frozen=True)
-class Waveform:
-    points: tuple[tuple[float, float], ...]
+# moved to golemLLM.core.types
 
-    def __post_init__(self):
-        pts = tuple(sorted(tuple(p) for p in self.points))  # force sort
-        if not pts or len({t for t, _ in pts}) != len(pts):
-            raise ValueError("Waveform: needs at least one point and distinct times")
-        object.__setattr__(self, "points", pts)
-
-    @classmethod
-    def of(cls, *points):  # Waveform.of((1000, 0), (2000, -5))
-        return cls(points)
-
-    def __str__(self) -> str:
-        return ";".join(f"{t:g},{y:g}" for t, y in self.points)
-
-def bounded(lo=None, hi=None, **kw):
-    # interval stored on the field; None = unbounded
-    # The bounded field type is, however enforced, not a security measure and only aids in 
-    # pointing the AI in the right direction, giving it a sense of scope.
-    # Limits are enforced by Dirigent systems.
-    return field(metadata={"lo": lo, "hi": hi}, **kw)
 #endregion
 
 #region Sections
@@ -269,8 +245,8 @@ class GolemPROPOSAL:
     preionization:          Optional[InfrastructurePreionization] = None
     workinggas:             WorkingGasRequest
     positionstabilization:  Optional[InfrastructurePositionStabilization] = None
-    biasingelectrode:       Optional[InfrastructureBiasingElectrode] = None
-    gasspuffing:            Optional[InfrastructureGasPuffing] = None
+    #biasingelectrode:       Optional[InfrastructureBiasingElectrode] = None
+    #gasspuffing:            Optional[InfrastructureGasPuffing] = None
     doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
     currentstabilization:   Optional[InfrastructureCurrentStabilization] = None
 
@@ -317,8 +293,101 @@ class GolemPROPOSAL:
                 for k in keys if a.get(k) != b.get(k)]
 #endregion
 
+#region Parsing from files to proposal
+class GolemPROPOSALparser:
+    def __init__(self, client):
+        self.client = client
 
-#region Parsing from command to proposal
+    def parse(self, shot: GolemSHOT) -> GolemPROPOSAL:
+
+        discharge = OperationDischarge(
+            style=shot.discharge_style,
+            voice=shot.higherpower_voice,
+            wg_voice=shot.higherpower_wg_voice,
+            RawDataAcquiring=shot.higherpower_rawdataacquiring,
+            analysis=shot.higherpower_analysis,
+            diagnostics_onstage=shot.higherpower_diagnostics_onstage,
+            diagnostics_offstage=shot.higherpower_diagnostics_offstage,
+            infrastructure=shot.higherpower_infrastructure,
+        )
+        higherpower = OperationHigherPower(
+            voice=shot.higherpower_voice,
+            wg_voice=shot.higherpower_wg_voice,
+            RawDataAcquiring=shot.higherpower_rawdataacquiring,
+            analysis=shot.higherpower_analysis,
+            diagnostics_onstage=shot.higherpower_diagnostics_onstage,
+            diagnostics_offstage=shot.higherpower_diagnostics_offstage,
+            infrastructure=shot.higherpower_infrastructure,
+        )
+
+        bt_ecd = InfrastructureBtEcd(
+            S_mode = shot.X_BtEcd_mode_X,
+            U_cd = shot.U_cd_request_V,
+            U_Bt = shot.U_bt_request_V,
+            t_cd = shot.t_cd_request_us,
+            t_Bt = shot.t_bt_request_us,
+            O_Cd = AngularDirection.CLOCKWISE if shot.O_cd_request_clockwise_b else AngularDirection.COUNTERCLOCKWISE,
+            O_Bt = AngularDirection.CLOCKWISE if shot.O_bt_request_clockwise_b else AngularDirection.COUNTERCLOCKWISE,
+        )
+        preionization = InfrastructurePreionization(
+            S_device = shot.device_preionization_X,
+            SW_main  = Toggle.ON if shot.switch_preionization_main_b else Toggle.OFF,
+            U_heater = shot.U_preionization_heater_V,
+            U_accel  = shot.U_preionization_accel_V,
+        )
+        workinggas = WorkingGasRequest(
+            S_mode = shot.mode_workinggas_X,
+            S_gas  = shot.X_workinggas_X,
+            p_H    = WorkingGas(shot.p_workinggas_mPa),
+            U_v    = shot.U_workinggas_valve_V,
+        )
+        positionstabilization = InfrastructurePositionStabilization(
+            main_switch = Toggle.ON if shot.switch_positionstabilization_main_b else Toggle.OFF,
+            radial_switch = Toggle.ON if shot.switch_positionstabilization_radial_b else Toggle.OFF,
+            radial_waveform = shot.waveform_positionstabilization_radial_us_V,
+            vertical_switch = Toggle.ON if shot.switch_positionstabilization_vertical_b else Toggle.OFF,
+            vertical_waveform = shot.waveform_positionstabilization_vertical_us_V
+        )
+        currentstabilization = InfrastructureCurrentStabilization(
+
+            main_switch = Toggle.ON if shot.switch_currentstabilization_main_b else Toggle.OFF,
+            waveform = shot.waveform_currentstabilization_us_V
+        )
+
+        doublelangballpenprobe = DiagnosticsDoubleLangballPenProbe(
+            r_lp_tip = shot.r_doublelangballpenprobe_tip_mm
+        )
+        limitermirnovcoils = DiagnosticsLimiterMirnovCoils(
+            vacuum_shot = shot.shot_limitermirnovcoils_vacuum_ID
+        )
+        rakeprobe = DiagnosticsRakeProbe(
+            r_first_tip = shot.r_rakeprobe_first_pin_mm
+        )
+
+        # TODO:
+
+        #discharge:              OperationDischarge
+        #higherpower:            Optional[OperationHigherPower] = None
+    
+        #bt_ecd:                 InfrastructureBtEcd
+        #preionization:          Optional[InfrastructurePreionization] = None
+        #workinggas:             WorkingGasRequest
+        #positionstabilization:  Optional[InfrastructurePositionStabilization] = None
+        #currentstabilization:   Optional[InfrastructureCurrentStabilization] = None
+
+        #doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
+        #doublerakeprobe:        Optional[DiagnosticsDoubleRakeProbe] = None
+        #rakeprobe:              Optional[DiagnosticsRakeProbe] = None
+        #limitermirnovcoils:     Optional[DiagnosticsLimiterMirnovCoils] = None
+        #scintillationprobes:    Optional[DiagnosticsScintillationProbes] = None
+        #stripdetector:          Optional[DiagnosticsStripDetector] = None
+
+        #ScanDefinition:         Optional[str] = None  # ?
+        #comment:                str
+        
+#endregion
+
+#region OBSOLETE Parsing from command to proposal
 class GolemPROPOSALparserOBSOLETE:
     def __init__(self, client): 
         self.client = client

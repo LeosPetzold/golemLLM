@@ -1,7 +1,14 @@
 # Data parsing
 
+from golemLLM.core.types import Waveform
 from ..helper import find_between
 from decimal import Decimal
+
+def summaryGET(str) -> tuple[str, str]:
+    """Returns a (key, value) tuple from a summary.
+    E.g.: S_device='HotCathode',SW_main='on',U_heater=100,U_accel=100
+    is turned to ("S_device", "HotCathode"), ..."""
+    return [p.split("=", 1) for p in str.split(",")]
 
 class GolemSHOT:
     def __init__(self, shotID, client):
@@ -77,6 +84,39 @@ class GolemSHOT:
     #    return result.strip()
 
     #endregion
+    #region Other & Request parameters
+
+    # Discharge basics
+
+    def discharge_style(self) -> str:
+        """Discharge parameter: style"""
+        return self.simUTF8s("Operation/Discharge/Parameters/style")
+
+    # HigherPower settings
+
+    def higherpower_voice(self) -> bool:
+        """Papouch voice configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/voice") == "on"
+    def higherpower_wg_voice(self) -> bool:
+        """Papuch working gas [?] voice configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/wg_voice") == "on"
+    def higherpower_rawdataacquiring(self) -> bool:
+        """Raw data acquiring configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/rawdataacquiring") == "on"
+    def higherpower_analysis(self) -> bool:
+        """Analysis configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/analysis") == "on"
+    def higherpower_diagnostics_onstage(self) -> bool:
+        """On-stage diagnostics configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/diagnostics_onstage") == "on"
+    def higherpower_diagnostics_offstage(self) -> bool:
+        """Off-stage diagnostics configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/diagnostics_offstage") == "on"
+    def higherpower_infrastructure(self) -> bool:
+        """Infrastructure configuration"""
+        return self.simUTF8s("Operation/HigherPower/Parameters/infrastructure") == "on"
+    
+    #endregion
     #region Technological parameters
 
     @property
@@ -96,43 +136,47 @@ class GolemSHOT:
         """Requested working gas type"""
         return self.simUTF8s("Operation/Discharge/X_working_gas_discharge_request")
 
+    @property
+    def X_BtEcd_mode_X(self) -> str:
+        """Mode for Bt_Ecd"""
+        return self.simUTF8s("Infrastructure/Bt_Ecd/Parameters/s_mode")
+
     # Toroidal magnetic field (Bt) bank
 
     @property
     def U_bt_request_V(self) -> float:
         """Requested Bt capacitor charging voltage [V]"""
-        return self.simUTF8f("Operation/Discharge/U_bt_discharge_request")
+        return self.simUTF8f
     @property
-    def U_bt_meas_dcd_V_FALLBACK(self) -> float:
-        """Measured Bt capacitor voltage during discharge [V]"""
-        #return self.simUTF8f("Operation/Discharge/U_bt_discharge_meas_dcd")
-        result = find_between(self.simUTF8s("index.html"), "\\(U\\sub{C_{PTC}}\\sup{dcd}\\)=", " V")
-        if result: return float(result)
-        else:
-            raise ValueError("Could not find the measured Bt capacitor voltage in the index.html file.")
+    def O_bt_request_clockwise_b(self) -> bool:
+        """Requested Bt discharge direction, CW=True"""
+        return summaryGET(self.simUTF8f("Production/Parameters/infrastructure.bt_ecd"))["O_Bt"] == "CW"
     @property
     def t_bt_request_us(self) -> float:
         """Requested Bt discharge time [µs]"""
-        return self.simUTF8f("Operation/Discharge/t_bt_discharge_request")
+        return float(summaryGET(self.simUTF8f("Production/Parameters/infrastructure.bt_ecd"))["t_Bt"])
+    def t_bt_charging_s(self) -> float:
+        """Bt charging time [s]"""
+        return self.simUTF8f("Infrastructure/Bt_Ecd/Parameters/cht_bt") or None
 
     # Current drive (CD) bank
 
     @property
     def U_cd_request_V(self) -> float:
         """Requested CD capacitor charging voltage [V]"""
-        return self.simUTF8f("Operation/Discharge/U_cd_discharge_request")
+        return float(summaryGET(self.simUTF8f("Production/Parameters/infrastructure.bt_ecd"))["U_cd"])
     @property
-    def U_cd_meas_dcd_V_FALLBACK(self) -> float:
-        """Measured CD capacitor voltage during discharge [V]"""
-        #return self.simUTF8f("Operation/Discharge/U_cd_discharge_meas_dcd")
-        result = find_between(self.simUTF8s("index.html"), "\\(U\\sub{C_{TFC}}\\sup{launch}\\)=", " V")
-        if result: return float(result)
-        else:
-            raise ValueError("Could not find the measured CD capacitor voltage in the index.html file.")
+    def O_cd_request_clockwise_b(self) -> bool:
+        """Requested CD discharge direction, CW=True"""
+        return summaryGET(self.simUTF8f("Production/Parameters/infrastructure.bt_ecd"))["O_cd"] == "CW"
     @property
     def t_cd_request_us(self) -> float:
         """Requested CD discharge time [µs]"""
-        return self.simUTF8f("Operation/Discharge/t_cd_discharge_request")
+        return float(summaryGET(self.simUTF8f("Production/Parameters/infrastructure.bt_ecd"))["t_cd"])
+    @property
+    def t_cd_charging_s(self) -> float:
+        """CD charging time [s]"""
+        return self.simUTF8f("Infrastructure/Bt_Ecd/Parameters/cht_cd") or None
 
     #endregion
     #region Plasma
@@ -214,4 +258,97 @@ class GolemSHOT:
         """Map generator of x: time (t) [ms] to y: chamber current (Ich) [kA]"""
         return self.simTableGen1f2f("Diagnostics/BasicDiagnostics/Results/Ich.csv")
 
+    #endregion
+    #region Preionization
+
+    @property
+    def device_preionization_X(self) -> str:
+        """Preionization device"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.preionization"))["S_device"]
+    @property
+    def switch_preionization_main_b(self) -> bool:
+        """Preionization main switch, on=True"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.preionization"))["SW_main"] == "on"
+    @property
+    def U_preionization_heater_V(self) -> float:
+        """Preionization U_heater"""
+        return float(summaryGET(self.simUTF8s("Production/Parameters/infrastructure.preionization"))["U_heater"])
+    @property
+    def U_preionization_accel_V(self) -> float:
+        """Preionization U_accel"""
+        return float(summaryGET(self.simUTF8s("Production/Parameters/infrastructure.preionization"))["U_accel"])
+
+    #endregion
+    #region Working gas
+
+    @property
+    def mode_workinggas_X(self) -> str:
+        """Working gas mode"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.working_gas"))["S_mode"]
+    @property
+    def X_workinggas_X(self) -> str:
+        """Working gas type"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.working_gas"))["S_gas"]
+    @property
+    def p_workinggas_mPa(self) -> float:
+        """Working gas pressure"""
+        return float(summaryGET(self.simUTF8s("Production/Parameters/infrastructure.working_gas"))["p_H"])
+    @property
+    def U_workinggas_valve_V(self) -> float:
+        """Working gas valve voltage"""
+        return float(summaryGET(self.simUTF8s("Production/Parameters/infrastructure.working_gas"))["U_v"])
+
+    #endregion
+    #region Position stabilization, current stabilization
+
+    @property
+    def switch_positionstabilization_main_b(self) -> bool:
+        """Position stabilization main switch, on=True"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.positionstabilization"))["main_switch"] == "on"
+    @property
+    def switch_positionstabilization_radial_b(self) -> bool:
+        """Position stabilization radial switch, on=True"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.positionstabilization"))["radial_switch"] == "on"
+    @property
+    def waveform_positionstabilization_radial_us_V(self) -> Waveform:
+        """Position stabilization radial waveform, time [µs], voltage [V]."""
+        return Waveform.of(*(tuple(map(float, p.split(","))) for p in summaryGET(
+            self.simUTF8s("Production/Parameters/infrastructure.positionstabilization"))["radial_waveform"].split(";")))
+    @property
+    def switch_positionstabilization_vertical_b(self) -> bool:
+        """Position stabilization vertical switch, on=True"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.positionstabilization"))["vertical_switch"] == "on"
+    @property
+    def waveform_positionstabilization_vertical_us_V(self) -> Waveform:
+        """Position stabilization vertical waveform, time [µs], voltage [V]."""
+        return Waveform.of(*(tuple(map(float, p.split(","))) for p in summaryGET(
+            self.simUTF8s("Production/Parameters/infrastructure.positionstabilization"))["vertical_waveform"].split(";")))
+
+    @property
+    def switch_currentstabilization_main_b(self) -> bool:
+        """Current stabilization main switch, on=True"""
+        return summaryGET(self.simUTF8s("Production/Parameters/infrastructure.currentstabilization"))["main_switch"] == "on"
+    @property
+    def waveform_currentstabilization_us_V(self) -> Waveform:
+        """Current stabilization waveform, time [µs], voltage [V]."""
+        return Waveform.of(*(tuple(map(float, p.split(","))) for p in summaryGET(
+            self.simUTF8s("Production/Parameters/infrastructure.currentstabilization"))["waveform"].split(";")))
+    
+    #endregion
+    #region Diagnostics: Probes
+
+    @property
+    def r_doublelangballpenprobe_tip_mm(self) -> float:
+        """Double Langball Pen Probe tip distance from poloidal center [mm]"""
+        return summaryGET(self.simUTF8f("Production/Parameters/infrastructure.doublelangballpenprobe"))["r_lp_tip"]
+
+    @property
+    def shot_limitermirnovcoils_vacuum_ID(self) -> int:
+        """Limiter Mirnov Coils vacuum shot ID"""
+        return summaryGET(self.simUTF8f("Production/Parameters/diagnostics.limitermirnovcoils"))["vacuum_shot"]
+
+    @property
+    def r_rakeprobe_first_pin_mm(self) -> float:
+        """Rake Probe first pin distance from poloidal center[mm]"""
+        return summaryGET(self.simUTF8f("Production/Parameters/diagnostics.rakeprobe"))["r_first_fip"]
     #endregion
