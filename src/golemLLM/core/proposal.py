@@ -88,6 +88,9 @@ class Waveform:
 
 def bounded(lo=None, hi=None, **kw):
     # interval stored on the field; None = unbounded
+    # The bounded field type is, however enforced, not a security measure and only aids in 
+    # pointing the AI in the right direction, giving it a sense of scope.
+    # Limits are enforced by Dirigent systems
     return field(metadata={"lo": lo, "hi": hi}, **kw)
 #endregion
 
@@ -130,11 +133,11 @@ class OperationHigherPower(Section):
 class InfrastructureBtEcd(Section):
     SECTION: ClassVar[str] = "infrastructure.bt_ecd"
     S_mode: str = field(default="time", init=False)
-    U_Bt:   int = bounded(0, 1200)  # V
-    t_Bt:   int
-    O_Bt:   AngularDirection
     U_cd:   int = bounded(0, 900)  # V
+    U_Bt:   int = bounded(0, 1200)  # V
+    t_Bt:   int = bounded(0, 10000)  # us
     t_cd:   int = bounded(0, 10000)  # us
+    O_Bt:   AngularDirection
     O_cd:   AngularDirection
     Cht_bt: int
     Cht_cd: int
@@ -155,20 +158,22 @@ class WorkingGasVacuum(Section):
     SECTION: ClassVar[str] = "infrastructure.workinggas"
     S_mode: str = field(default="vacuum", init=False)
     S_gas:  WorkingGas
-    p_H:    float = field(default=0, init=False)
-    U_v:    float = field(default=0, init=False)
+    p_H:    float = field(default=0, init=False)  # mPa
+    U_v:    float = field(default=0, init=False)  # V
 @frozen
 class WorkingGasPressure(Section):
     SECTION: ClassVar[str] = "infrastructure.workinggas"
     S_mode: PressureMode
     S_gas:  WorkingGas
-    p_H:    float = bounded(0, 40)  # mPa
+    p_H:    float = bounded(0, 100)  # mPa
+    U_v:    float = field(default=0, init=False)  # V
 @frozen
 class WorkingGasValveVoltage(Section):
     SECTION: ClassVar[str] = "infrastructure.workinggas"
     S_mode: str = field(default="U_v", init=False)
     S_gas:  WorkingGas
-    U_v:    float
+    p_H:    float = field(default=0, init=False)  # mPa
+    U_v:    float  # V
 
 WorkingGasRequest = WorkingGasVacuum | WorkingGasPressure | WorkingGasValveVoltage
 
@@ -188,7 +193,7 @@ class InfrastructureBiasingElectrode(Section):
     SECTION: ClassVar[str] = "infrastructure.biasingelectrode"
     main_switch: Optional[Toggle] = None
     waveform:    Optional[Waveform] = None
-    position:    Optional[PerCent] = None
+    position:    Optional[Millimetres] = bounded(0, 100)  # mm
 
 
 @frozen
@@ -205,19 +210,6 @@ class InfrastructureCurrentStabilization(Section):
 
 
 @frozen
-class DiagnosticsDoubleRakeProbe(Section):
-    SECTION: ClassVar[str] = "diagnostics.doublerakeprobe"
-    r_First_Tip: Optional[Millimetres] = bounded(hi=100, default=None)  # wall at ~100 mm ?
-    X_mod:       Optional[PinMask] = None
-    I_SilverBox: Optional[float] = None
-
-@frozen
-class DiagnosticsDoubleLangballPenProbe(Section):
-    SECTION: ClassVar[str] = "diagnostics.doublelangballpenprobe"
-    r_lp_tip:    Optional[Millimetres] = bounded(hi=130, default=None)  # wall at ~130 mm ?
-
-
-@frozen
 class DiagnosticsRakeProbe(Section):
     SECTION: ClassVar[str] = "diagnostics.rakeprobe"
     r_First_Tip:     Optional[Millimetres] = bounded(hi=100, default=None)  # %
@@ -226,6 +218,19 @@ class DiagnosticsRakeProbe(Section):
     I_SilverBox:     Optional[float] = None
     r_manipulator:   Optional[Millimetres] = None
     phi_manipulator: Optional[Degrees] = None
+
+@frozen
+class DiagnosticsDoubleRakeProbe(Section):
+    SECTION: ClassVar[str] = "diagnostics.doublerakeprobe"
+    r_First_Tip: Optional[Millimetres] = bounded(hi=100, default=None)  # wall at ~100 mm ?
+    X_mod:       Optional[PinMask] = None
+    I_SilverBox: Optional[float] = None
+
+
+@frozen
+class DiagnosticsDoubleLangballPenProbe(Section):
+    SECTION: ClassVar[str] = "diagnostics.doublelangballpenprobe"
+    r_lp_tip:    Optional[Millimetres] = bounded(hi=130, default=None)  # wall at ~130 mm ?
 
 
 @frozen
@@ -255,26 +260,29 @@ class DiagnosticsStripDetector(Section):
 #region Proposal class
 @frozen
 class GolemPROPOSAL:
-    # required
-    discharge:  OperationDischarge
-    bt_ecd:     InfrastructureBtEcd
-    workinggas: WorkingGasRequest
-    comment:    str
+    # to order, None means argument not in command
 
-    # optional, None means argument not in command
+    # Operation
+    discharge:              OperationDischarge
     higherpower:            Optional[OperationHigherPower] = None
+
+    bt_ecd:                 InfrastructureBtEcd
     preionization:          Optional[InfrastructurePreionization] = None
+    workinggas:             WorkingGasRequest
     positionstabilization:  Optional[InfrastructurePositionStabilization] = None
     biasingelectrode:       Optional[InfrastructureBiasingElectrode] = None
     gasspuffing:            Optional[InfrastructureGasPuffing] = None
     currentstabilization:   Optional[InfrastructureCurrentStabilization] = None
-    doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
+
     doublerakeprobe:        Optional[DiagnosticsDoubleRakeProbe] = None
     rakeprobe:              Optional[DiagnosticsRakeProbe] = None
+    doublelangballpenprobe: Optional[DiagnosticsDoubleLangballPenProbe] = None
     limitermirnovcoils:     Optional[DiagnosticsLimiterMirnovCoils] = None
     scintillationprobes:    Optional[DiagnosticsScintillationProbes] = None
     stripdetector:          Optional[DiagnosticsStripDetector] = None
-    ScanDefinition:         Optional[str] = None
+    
+    ScanDefinition:         Optional[str] = None  # ?
+    comment:                str
 
     def __post_init__(self):  # safe valid characters?
         texts = [self.comment] + ([] if self.ScanDefinition is None else [self.ScanDefinition])
