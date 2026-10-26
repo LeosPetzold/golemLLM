@@ -44,14 +44,14 @@ def MCP_getShotFile(shotID: int, filePath: str):
             "status": "error",
             "error_type": "INVALID_SHOT_ID",
             "message": f"Invalid shotID '{shotID}'. Must be an integer."
-        }, True
+        }
 
     if not GOLEMC.shotProbeHEAD(shotID):
         return {
             "status": "error",
             "error_type": "SHOT_NOT_FOUND",
             "message": f"Shot {shotID} not found."
-        }, True
+        }
     try:
         data = GOLEMC.getShotFileCached(shotID, filePath)
         return {
@@ -59,19 +59,19 @@ def MCP_getShotFile(shotID: int, filePath: str):
             "shot_id": shotID,
             "file_path": filePath,
             "file_content": data
-        }, False
+        }
     except FileNotFoundError:
         return {
             "status": "error",
             "error_type": "FILE_NOT_FOUND",
             "message": f"File '{filePath}' not found for shot {shotID}."
-        }, True
+        }
     except Exception as e:
         return {
             "status": "error",
             "error_type": "UNKNOWN_ERROR",
             "message": f"Unknown error while retrieving file '{filePath}' for shot {shotID}."
-        }, True
+        }
 
 @SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Production/Parameters')")
 def MCP_listDirectory(shotID: int, directory: str = ""):
@@ -84,7 +84,7 @@ def MCP_listDirectory(shotID: int, directory: str = ""):
             "status": "error",
             "error_type": "INVALID_SHOT_ID",
             "message": f"Invalid shotID '{shotID}'. Must be an integer."
-        }, True
+        }
 
     try:
         data = GOLEMC.listDirectory(shotID, directory)
@@ -93,31 +93,31 @@ def MCP_listDirectory(shotID: int, directory: str = ""):
             "shot_id": shotID,
             "directory": directory,
             "entries": data
-        }, False
+        }
     except FileNotFoundError:
         return {
             "status": "error",
             "error_type": "DIRECTORY_NOT_FOUND",
             "message": f"Directory '{directory}' not found for shot {shotID}."
-        }, True
+        }
     except Exception as e:
         return {
             "status": "error",
             "error_type": "UNKNOWN_ERROR",
             "message": f"Unknown error while listing directory '{directory}' for shot {shotID}. {e}"
-        }, True
+        }
     except FileNotFoundError:
         return {
             "status": "error",
             "error_type": "FILE_NOT_FOUND",
             "message": f"Directory '{directory}' not found for shot {shotID}."
-        }, True
+        }
     except Exception as e:
         return {
             "status": "error",
             "error_type": "UNKNOWN_ERROR",
             "message": f"Unknown error while retrieving directory '{directory}' for shot {shotID}."
-        }, True
+        }
 
 
 #endregion
