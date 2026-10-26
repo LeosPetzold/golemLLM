@@ -31,6 +31,7 @@ Files:
 - `whole.setup` lists modules and diagnostics which took part in the shot.
 - `shot_no` contains the shot's ID.
 - `ShotLogBook` is a log from the shot itself, powered by Dirigent.
+
 Directories:
 - `Devices` contains all measurement and active devices providing data.
 - `Diagnostics` houses all diagnostic processes ran on the shot.
@@ -40,5 +41,3 @@ Directories:
 
 ### Diagnostics
 You can see the diagnostics that took place in a shot in its `Diagnostics/` directory. Each process is a folder and should reflect `whole.setup`.
-
-Maintain memories of different data locations so you can swiftly locate them later if appropriate.
