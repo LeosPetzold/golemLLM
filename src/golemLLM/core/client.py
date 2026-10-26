@@ -4,6 +4,8 @@ import os
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
+from html.parser import HTMLParser
 #import argparse
 
 HTTP_SHOTSURL_DEFAULT = "http://golem.fjfi.cvut.cz/shots"
@@ -14,6 +16,26 @@ LOCAL_SHOTSPATH_DEFAULT = "/home/tG/shots/" # Sample; shots shall be named by nu
 LOCAL_ATTEMPTS = 5  # retries for file access
 
 _MISSING = object() # Sentinel for missing files
+
+
+class _DirectoryListingParser(HTMLParser):
+    """Parse files and directories from a standard HTML directory index."""
+    def __init__(self):
+        super().__init__()
+        self.entries = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "a":
+            return
+        href = dict(attrs).get("href", "")
+        parsed = urllib.parse.urlparse(href)
+        name = urllib.parse.unquote(parsed.path).rstrip("/").rsplit("/", 1)[-1]
+        if name in ("", ".", ".."):
+            return
+        entry_type = "directory" if parsed.path.endswith("/") else "file"
+        entry = {"name": name, "type": entry_type}
+        if entry not in self.entries:
+            self.entries.append(entry)
 
 # Golem CLIENT base for shared processing functionality & caching features
 class _GolemCLIENTbase:
@@ -82,6 +104,25 @@ class GolemCLIENThttp(_GolemCLIENTbase):
 
     # Helper functions
 
+    def listDirectory(self, shotID, directory):
+        """Lists files and directories in a shot directory exposed by the HTTP archive."""
+        if shotID == 0:
+            shotID = self.getLatestShotID()
+        path_parts = [p for p in str(directory).replace("\\", "/").split("/") if p not in ("", ".", "..")]
+        relative_directory = "/".join(path_parts)
+        url = f"{self.shotsURL}/{shotID}/"
+        if relative_directory:
+            url += f"{urllib.parse.quote(relative_directory, safe='/')}/"
+        try:
+            with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
+                parser = _DirectoryListingParser()
+                parser.feed(response.read().decode("utf-8", errors="replace"))
+                return parser.entries
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise FileNotFoundError(f"Shot directory {shotID} not found.") from e
+            raise
+
     def getLatestShotID(self):
         return int(self.getShotFile(0, "shot_no").decode('utf-8').strip())
     def getShotFile(self, shotID, fileName):
@@ -134,6 +175,21 @@ class GolemCLIENTlocal(_GolemCLIENTbase):
             raise OSError(f"Failed to check existence of shot {shotID} at {self.basePath}: {e}") from e
 
     # Helper functions
+
+    def listDirectory(self, shotID, directory):
+        """Lists files and directories in a local shot directory."""
+        if shotID == 0:
+            shotID = self.getLatestShotID()
+        path = os.path.join(self.basePath, str(shotID), directory)
+        try:
+            return [
+                { "name": entry.name, "type": "directory" if entry.is_dir() else "file", }
+                for entry in os.scandir(path)
+            ]
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"Shot directory {shotID} not found.") from e
+        except OSError as e:
+            raise OSError(f"Failed to list shot directory {shotID}: {e}") from e
 
     def getLatestShotID(self) -> int:
         ids = [int(dir) for dir in os.listdir(self.basePath)
