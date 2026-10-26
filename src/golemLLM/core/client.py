@@ -92,8 +92,8 @@ class GolemCLIENThttp(_GolemCLIENTbase):
         if self.verbose:
             print(f"[DEBUG] Checking existence of shot {'LATEST' if shotID == 0 else shotID} at {self.shotsURL}")
         try:
-            # There is always a file named shotID in the shot directory.
-            req = urllib.request.Request(f"{self.shotsURL}/{shotID}/{shotID}", method='GET')
+            # There is always a file named shot_no in the shot directory.
+            req = urllib.request.Request(f"{self.shotsURL}/{shotID}/shot_no", method='GET')
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
                 return response.status == 200
         except urllib.error.HTTPError as e:
