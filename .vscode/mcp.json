@@ -3,7 +3,10 @@
     "GolemLLM": {
       "type": "stdio",
       "command": "${workspaceFolder}/.venv/bin/python",
-      "args": ["-m", "golemLLM.server"]
+      "args": ["-m", "golemLLM.server"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
     }
   }
 }
