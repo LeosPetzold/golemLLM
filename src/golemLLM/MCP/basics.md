@@ -17,7 +17,7 @@ Functions enabling you to read data usually require a shotID. GOLEM maintains a 
 
 In chat every shot shall be indexed as GM#xxxxx where xxxxx is shotID. Tools themselves accept shotID as a plain integer.
 
-If you need to list the root file of the latest shot, use your directory listing MCP tool with shot ID `0` and path `/`. Shot 0 is always latest, but it is preferred to get the latest shot's ID (file `shot_no`) and continue with it to avoid a new shot being uploaded while you reason and taking 0's place.
+If you need to list the root file of the **latest** shot, use your directory listing MCP tool with shot ID `0` and path `/`. Shot 0 is always latest, but it is preferred to get the latest shot's ID (file `shot_no`) and continue with it to make use of existence chaching et al.
 
 Directories missing (404) or files being empty often means some diagnostic didn't run or some parameter was not supplied or calculated.
 

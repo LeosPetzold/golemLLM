@@ -33,6 +33,7 @@ GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VER
           if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_FILES, verbose=VERBOSE))
 
 #region GOLEM data access
+existence_cache = {} # Shot existence checks cache
 @SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'Production/Parameters/FullCommandLine')")
 def MCP_getShotFile(shotID: int, filePath: str):
     filePath = filePath.replace(".", "")
@@ -45,13 +46,16 @@ def MCP_getShotFile(shotID: int, filePath: str):
             "error_type": "INVALID_SHOT_ID",
             "message": f"Invalid shotID '{shotID}'. Must be an integer."
         }
-
-    if not GOLEMC.shotProbeHEAD(shotID):
-        return {
-            "status": "error",
-            "error_type": "SHOT_NOT_FOUND",
-            "message": f"Shot {shotID} not found."
-        }
+    
+    if shotID != 0:
+        if shotID not in existence_cache:
+            existence_cache[shotID] = GOLEMC.shotProbeHEAD(shotID)
+        if not existence_cache[shotID]:
+            return {
+                "status": "error",
+                "error_type": "SHOT_NOT_FOUND",
+                "message": f"Shot {shotID} not found."
+            }
     try:
         data = GOLEMC.getShotFileCached(shotID, filePath)
         return {
