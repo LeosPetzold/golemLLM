@@ -1,8 +1,8 @@
 # MCP server, main
 
-from mcp.server.mcpserver import MCPServer
 from mcp.server.apps import Apps
-from mcp.types import Resource
+from mcp.server.mcpserver import MCPServer
+from mcp.types import CallToolResult, TextContent
 from pathlib import Path
 import logging
 import os
@@ -20,7 +20,7 @@ CLIENT_LOCAL_SHOTSDIR = "/home/tG/shots/"
 CLIENT_HTTP_SHOTSURL = "http://golem.fjfi.cvut.cz/shots"
 VERBOSE = False  # Verbose logging for GolemClient
 
-KNOWLEDGE_BASICS = os.path.join(os.path.dirname(__file__), "MCP", "basics.md")
+KNOWLEDGE_BASICS = os.path.join(os.path.dirname(__file__), "guide", "basics.md")
 
 DRY_RUN = True  # Testing purposes only, prevents from running discharges
 TTL = 3600  # Time a proposal is valid for [s]
@@ -28,12 +28,52 @@ UI_URI = "ui://proposal.html"
 UI_FILE = Path(__file__).parent / "ui" / "proposal.html"
 
 LOGGER = logging.getLogger("MCPGolemLLM")
-SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", instructions=INSTRUCTIONS)
+APPS = Apps()
 GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VERBOSE)
           if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_FILES, verbose=VERBOSE))
 
 #region MCP application
+@APPS.tool(resource_uri=UI_URI, name="proposeDischarge", description="Propose a discharge to the operator.")
+def MCP_proposeDischarge(proposalTitle: str, proposalReason: str, referenceShotID: int, proposedCommand: str):
+    try:
+        referenceShotID = int(referenceShotID)
+        if referenceShotID < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_SHOT_ID",
+            "message": f"Invalid referenceShotID '{referenceShotID}'. Must be a non-zero integer."
+        }
 
+    return CallToolResult(
+        content=[ TextContent(type="text",
+                              text=(
+                                  f"Proposal title: {proposalTitle}\n"
+                                  f"Proposal reasoning: {proposalReason}\n"
+                                  f"Parameter reference shot ID: {referenceShotID}\n"
+                                  f"Proposed command: {proposedCommand}"
+                              )) ],
+        structured_content={
+            "proposal_title": proposalTitle,
+            "proposal_reason": proposalReason,
+            "reference_shot_ID": referenceShotID,
+            "proposed_command": proposedCommand
+        },
+        _meta={
+            "ui": { "resourceUri": UI_URI }
+        }
+    )
+
+APPS.add_html_resource(
+    UI_URI,
+    UI_FILE.read_text(),
+    name="Discharge proposal interface",
+    description="Interface for proposing discharges to the operator.",
+)
+
+SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", instructions=INSTRUCTIONS,
+                   extensions=[APPS])
 #endregion
 
 #region GOLEM data access
