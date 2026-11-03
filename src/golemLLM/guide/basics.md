@@ -10,7 +10,16 @@ Constantly improve your proposals. Tell the operator if you need more samples (p
 ## Proposals
 All commands you propose will either go through `Dirigent.sh`'s safeguards or be rejected by the operator.
 
-Proposals should be in `./Dirigent.sh --discharge <...>` format. This is noted in the `Production/Parameters/CommandLine` file of each shot, inspire yourself.
+Propose via MCP tools. The user should see an inline MCP App with details.
+In chat every shot proposal shall be indexed as GsP#xxxxx where xxxxx is proposal No.
+
+When proposing a discharge, you must supply several crucial parameters:
+- Proposal title - shortly illustrates the GsP's nature,
+- Proposal reasoning - why your proposal is the way it is, usually one or two sentences,
+- Reference shot ID - a real GM# shot your command will be compared to in front of the operator,
+- Proposal command - discharge command, see below.
+
+Proposal commands should be in `./Dirigent.sh --discharge <...>` format. This is noted in the `Production/Parameters/CommandLine` file of each shot, inspire yourself.
 
 ## Accessing data
 Functions enabling you to read data usually require a shotID. GOLEM maintains a list of executed shots in a database and provides access to them either via SSH or a REST API, which this MCP connects to.
@@ -24,13 +33,12 @@ Directories missing (404) or files being empty often means some diagnostic didn'
 If the MCP requests fail, notify the operator. Do not attempt to make direct fetch requests to GOLEM's shot database (wiki at is allowed) unless told otherwise.
 
 ### Points of interest in the root directory
-Files:
-- `{shotID}.html` (or `index.html`) is the shot page exposed to users.
-- `Dirigent.sh` is the script used to control GOLEM.
+Files (applies upward of ~ GM#54650):
+- `index.html` is the shot page exposed to users. Do not load unless absolutely necessary, wastes context.
 - `comment` is a file describing the shot very briefly.
-- `whole.setup` lists modules and diagnostics which took part in the shot.
 - `shot_no` contains the shot's ID.
-- `ShotLogBook` is a log from the shot itself, powered by Dirigent.
+- `session_id` contains the first shot's ID of the session. Useful for datamining.
+- `conductor/discharge.json` is a log from the shot itself, powered by Dirigent.
 
 Directories:
 - `Devices` contains all measurement and active devices providing data.

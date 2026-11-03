@@ -1,28 +1,109 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>GOLEM shot proposal</title>
-<style>
 
+<style>
+    :root {
+        color-scheme: light dark;
+
+        --bg: var(--vscode-sideBar-background, #1e1e1e);
+        --fg: var(--vscode-foreground, #cccccc);
+        --border: var(--vscode-notificationsErrorIcon-foreground, #444);
+        --accent: var(--vscode-notificationsErrorIcon-foreground, #d32f2f);
+
+        --font: var(--font-family, system-ui);
+    }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font); }
+    button { color: inherit; border: 1px solid var(--border); }
+    pre { white-space: pre-wrap; overflow-wrap: break-word; }
 </style>
 
-<h3>GOLEM shot proposal no. <span id="val-proposal-number">#####</span> -- 
-<span id="val-shot-title">Name not yet known</span></h3>
+<h3>GsP: <u><span id="val-shot-title">Name not yet known</span></u></h3>
 
-<p id="val-shot-reason">This shot has been proposed with modifications collerating with reasons not yet known.</p>
+<p id="val-shot-reason">No reasoning supplied.</p>
 
-<table>
-    <thead>
-        <tr>
-            <th><b>Parameter</b></th>
-            <th>Technical pointer</th>
-            <th>GM#<b id="val-reference-number">??????</b><th>
-            <th><b>PROPOSAL</b></th>
-        </tr>
-    </thead>
-    <tbody id="val-proposal-rows">
-        
-    </tbody>
-</table>
+<p><strong>Reference shot:</strong> GM#<span id="val-reference-number">??????</span></p>
 
-<pre><code># Proposal  <span id="val-proposal-number">#####</span>
-<span id="val-proposal-command">./Dirigent.sh? & DETAILS NOT YET KNOWN</span></code><button id="btn-copy-command">COPY</button></pre>
+<pre><code># Proposal GsP#<span id="val-proposal-number">N0_PENDING!</span>
+<span id="val-proposal-command">No command supplied.</span></code>
+<br><button id="btn-copy-command">Copy</button> <span id="copy-status"></span></pre>
+
+<script>
+    // Copy button
+    document.getElementById("btn-copy-command").addEventListener("click", async () => {
+        const status = document.getElementById("copy-status");
+        try {
+            await navigator.clipboard.writeText(
+                "# Proposal GsP#" +
+                document.getElementById("val-proposal-number").textContent + "\n" +
+                document.getElementById("val-proposal-command").textContent);
+            status.textContent = "Copied.";
+        } catch {
+            status.textContent = "Clipboard unavailable.";
+        }
+    });
+
+    // Adaptive theming
+    function setTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+    }
+window.matchMedia("(prefers-color-scheme: dark)")
+  .addEventListener("change", e => setTheme(e.matches ? "dark" : "light"));
+setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+</script>
+<script>
+    const host = window.parent;
+    const text = (id, value, fallback) => {
+        document.getElementById(id).textContent = value ?? fallback;
+    };
+
+    function renderProposal(data) {
+        if (!data) return;
+        text("val-shot-title", data.proposal_title, "Untitled proposal");
+        text("val-shot-reason", data.proposal_reason, "No reasoning supplied.");
+        text("val-reference-number", data.reference_shot_ID, "??????");
+        text("val-proposal-number", data.proposal_number, "Pending");
+        text("val-proposal-command", data.proposed_command, "No command supplied.");
+
+        const tbody = document.getElementById("val-proposal-rows");
+        tbody.replaceChildren();
+        const parameters = Array.isArray(data.parameters) ? data.parameters : [];
+        if (!parameters.length) {
+            const cell = document.createElement("td");
+            cell.colSpan = 4;
+            cell.textContent = "No parameter breakdown supplied.";
+            const row = document.createElement("tr");
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+        for (const parameter of parameters) {
+            const row = document.createElement("tr");
+            for (const value of [parameter.parameter, parameter.pointer, parameter.reference, parameter.proposal]) {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            }
+            tbody.appendChild(row);
+        }
+    }
+
+    window.addEventListener("message", ({ source, data: message }) => {
+        if (source !== host || message?.jsonrpc !== "2.0") return;
+        if (message.id === 1 && message.result?.protocolVersion) {
+            host.postMessage({ jsonrpc: "2.0", method: "ui/notifications/initialized" }, "*");
+        } else if (message.method === "ui/notifications/tool-result") {
+            renderProposal(message.params?.structuredContent);
+        }
+    });
+
+    host.postMessage({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "ui/initialize",
+        params: {
+            appInfo: { name: "GolemLLM", version: "1.0.0" },
+            appCapabilities: {},
+            protocolVersion: "2026-01-26"
+        }
+    }, "*");
+</script>
