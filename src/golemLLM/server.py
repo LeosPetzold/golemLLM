@@ -32,6 +32,10 @@ SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", in
 GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VERBOSE)
           if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_FILES, verbose=VERBOSE))
 
+#region MCP application
+
+#endregion
+
 #region GOLEM data access
 existence_cache = {} # Shot existence checks cache
 @SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'Production/Parameters/FullCommandLine')")
@@ -108,22 +112,8 @@ def MCP_listDirectory(shotID: int, directory: str = ""):
         return {
             "status": "error",
             "error_type": "UNKNOWN_ERROR",
-            "message": f"Unknown error while listing directory '{directory}' for shot {shotID}. {e}"
+            "message": f"Unknown error while listing directory '{directory}' for shot {shotID}."
         }
-    except FileNotFoundError:
-        return {
-            "status": "error",
-            "error_type": "FILE_NOT_FOUND",
-            "message": f"Directory '{directory}' not found for shot {shotID}."
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error_type": "UNKNOWN_ERROR",
-            "message": f"Unknown error while retrieving directory '{directory}' for shot {shotID}."
-        }
-
-
 #endregion
 
 #region GOLEM know-how
@@ -140,6 +130,13 @@ def guide_basics():
         }
 #endregion
 
+#region RUNTIME
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     SERVER.run()  # stdio
+
+#endregion
+
+#region Helpers
+
+#endregion
