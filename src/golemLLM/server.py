@@ -4,6 +4,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.apps import Apps
 from mcp.types import Resource
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 import logging
 import os
 
@@ -36,7 +37,7 @@ GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VER
 existence_cache = {} # Shot existence checks cache
 @SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'Production/Parameters/FullCommandLine')")
 def MCP_getShotFile(shotID: int, filePath: str):
-    filePath = filePath.replace("..", "")
+    filepath = cleanseURL(filePath)
 
     try:
         shotID = int(shotID)
@@ -79,7 +80,7 @@ def MCP_getShotFile(shotID: int, filePath: str):
 
 @SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Production/Parameters')")
 def MCP_listDirectory(shotID: int, directory: str = ""):
-    directory = directory.replace("..", "")
+    directory = cleanseURL(directory)
 
     try:
         shotID = int(shotID)
@@ -138,6 +139,11 @@ def guide_basics():
             "error_type": "FILE_NOT_FOUND",
             "message": f"Knowledge file not found."
         }
+#endregion
+
+#region Helpers
+def cleanseURL(url: str) -> str:
+    return urlparse(unquote(url)).path.replace("..", "") # non-func
 #endregion
 
 if __name__ == "__main__":
