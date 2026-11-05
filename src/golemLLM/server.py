@@ -1,5 +1,8 @@
 # MCP server, main
 
+import asyncio
+import time
+
 from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
@@ -22,6 +25,7 @@ CLIENT_HTTP_SHOTSURL = "http://golem.fjfi.cvut.cz/shots"
 VERBOSE = False  # Verbose logging for GolemClient
 
 KNOWLEDGE_BASICS = os.path.join(os.path.dirname(__file__), "guide", "basics.md")
+KNOWLEDGE_STATUS = os.path.join(os.path.dirname(__file__), "guide", "status.md")
 
 DRY_RUN = True  # Testing purposes only, prevents from running discharges
 TTL = 3600  # Time a proposal is valid for [s]
@@ -79,7 +83,7 @@ SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", in
 
 #region GOLEM data access
 existence_cache = {} # Shot existence checks cache
-@SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'Production/Parameters/FullCommandLine')")
+@SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'conductor/discharge.json')")
 def MCP_getShotFile(shotID: int, filePath: str):
     filepath = cleanseURL(filePath)
 
@@ -122,7 +126,7 @@ def MCP_getShotFile(shotID: int, filePath: str):
             "message": f"Unknown error while retrieving file '{filePath}' for shot {shotID}."
         }
 
-@SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Production/Parameters')")
+@SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Diagnostics/BasicDiagnostics')")
 def MCP_listDirectory(shotID: int, directory: str = ""):
     directory = cleanseURL(directory)
 
@@ -155,6 +159,29 @@ def MCP_listDirectory(shotID: int, directory: str = ""):
             "error_type": "UNKNOWN_ERROR",
             "message": f"Unknown error while listing directory '{directory}' for shot {shotID}."
         }
+
+@SERVER.tool("awaitShot", description="Wait for a shot to be triggered. Returns when the shot exists or after a timeout.")
+async def await_shot(shotID: int) -> str:
+    start_time = time.time()
+
+    try:
+        shotID = int(shotID)
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_SHOT_ID",
+            "message": f"Invalid shotID '{shotID}'. Must be an integer."
+        }
+    
+    while time.time() - start_time < 3600:
+        is_triggered = GOLEMC.shotProbeHEAD(shotID)
+        
+        if is_triggered:
+            return f"Shot '{shotID}' exists."
+            
+        await asyncio.sleep(2)
+        
+    return f"Waiting for shot '{shotID}' timed out ({3600}s)."
 #endregion
 
 #region GOLEM know-how
@@ -162,6 +189,17 @@ def MCP_listDirectory(shotID: int, directory: str = ""):
 def guide_basics():
     try:
         with open(KNOWLEDGE_BASICS, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return {
+            "status": "error",
+            "error_type": "FILE_NOT_FOUND",
+            "message": f"Knowledge file not found."
+        }
+@SERVER.resource("guide://status", name="Things to know before proposing shots", description="Everything temporary to take into account before proposing shots")
+def guide_basics():
+    try:
+        with open(KNOWLEDGE_STATUS, "r") as f:
             return f.read()
     except FileNotFoundError:
         return {
