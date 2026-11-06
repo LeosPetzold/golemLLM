@@ -7,6 +7,10 @@ The MCP server provides AI with an intuitive way to view the latest shot data ([
 (http://golem.fjfi.cvut.cz/shots/0/Operation/Discharge/Styles/index.html) which will (after the operator accepts it) be performed on the tokamak. \
 This is an interative process and will adapt shots to the operator's needs (whether plasma stability or best [MHD](https://en.wikipedia.org/wiki/Magnetohydrodynamics) anomaly detection, depends on instructions) to a point where GOLEM personnel can resume under better conditions without spending time on finding them.
 
+## Project status
+This project is under active development. \
+With the help of previous shots, GOLEM operators and the GolemLLM system in this repository, we were able to achieve shot [GM#54785](https://golem.fjfi.cvut.cz/shots/54785) with remarkably stable plasma with surprising repeatability. This is currently being studied.
+
 ## Setup
 1. Clone the repository: `git clone https://github.com/LeosPetzold/golemLLM`
 2. Create a Python virtual environment in the `golemLLM` repo directory: `python3 -m venv .venv`
