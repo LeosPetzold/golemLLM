@@ -6,13 +6,13 @@ import logging
 import os
 import time
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
 
 from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
+from golemLLM.parsing import cleanse_path, getShotJSONfield, listJSONfields
 
 INSTRUCTIONS = """You are a research assistant aiding the operator (user) in operating the GOLEM tokamak.
 You may propose discharges inline with criteria of the operator's will, which may or may not be approved.
@@ -44,9 +44,6 @@ GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VER
 def _error(error_type: str, message: str) -> dict:
     return {"status": "error", "error_type": error_type, "message": message}
 
-def cleanseURL(url: str) -> str:
-    return urlparse(unquote(url)).path.replace("..", "")
-
 def _parse_shot_id(shotID):
     """Returns (shotID, None) or (None, error). Does not check existence."""
     try:
@@ -71,23 +68,6 @@ def _resolve_shot(shotID):
     if shotID != 0 and not _shot_exists(shotID):
         return None, _error("SHOT_NOT_FOUND", f"Shot {shotID} not found.")
     return shotID, None
-
-def _read_json_field(shotID: int, filepath: str, fieldPath: str):
-    data = GOLEMC.getShotFileCached(shotID, filepath)
-    if isinstance(data, (str, bytes, bytearray)):
-        data = json.loads(data)
-
-    value = data
-    for field in fieldPath.strip("/").split("/"):
-        if not field:
-            continue
-        if isinstance(value, dict):
-            value = value[field]
-        elif isinstance(value, list):
-            value = value[int(field)]
-        else:
-            raise KeyError(field)
-    return value
 
 def _json_field_error(e: Exception, shotID: int, filepath: str, fieldPath: str) -> dict:
     # Order matters: JSONDecodeError and UnicodeDecodeError are also ValueErrors.
@@ -148,7 +128,7 @@ SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", in
 #region GOLEM data access
 @SERVER.tool("getShotFile", description="Get a file from a shot. File path is relative to the shot's root directory. Example: getShotFile(0, 'conductor/discharge.json')")
 def MCP_getShotFile(shotID: int, filePath: str):
-    filepath = cleanseURL(filePath)
+    filepath = cleanse_path(filePath)
     shotID, err = _resolve_shot(shotID)
     if err:
         return err
@@ -169,13 +149,13 @@ def MCP_getShotFile(shotID: int, filePath: str):
 
 @SERVER.tool("getShotJSON", description="Get a JSON file from a shot. File path is relative to the shot's root directory. Field path is the value in the JSON file.Example: getShotJSON(0, 'conductor/discharge.json', 'parameters/infrastructure.toroidal_magnetic_field/voltage_v')")
 def MCP_getShotJSON(shotID: int, JSONfilePath: str, JSONfieldPath: str):
-    filepath = cleanseURL(JSONfilePath)
+    filepath = cleanse_path(JSONfilePath)
     shotID, err = _resolve_shot(shotID)
     if err:
         return err
 
     try:
-        value = _read_json_field(shotID, filepath, JSONfieldPath)
+        value = getShotJSONfield(GOLEMC, shotID, filepath, JSONfieldPath)
     except Exception as e:
         return _json_field_error(e, shotID, filepath, JSONfieldPath)
 
@@ -189,34 +169,27 @@ def MCP_getShotJSON(shotID: int, JSONfilePath: str, JSONfieldPath: str):
 
 @SERVER.tool("listJSONchildFields", description="Shallowly list the child fields of a JSON field in a file. File path is relative to the shot's root directory. Example: listJSONchildFields(0, 'conductor/discharge.json', 'quantities/diagnostics.basic_diagnostics/discharge')")
 def MCP_listJSONchildFields(shotID: int, JSONfilePath: str, JSONfieldPath: str):
-    filepath = cleanseURL(JSONfilePath)
+    filepath = cleanse_path(JSONfilePath)
     shotID, err = _resolve_shot(shotID)
     if err:
         return err
 
     try:
-        value = _read_json_field(shotID, filepath, JSONfieldPath)
+        children = listJSONfields(GOLEMC, shotID, filepath, JSONfieldPath)
     except Exception as e:
         return _json_field_error(e, shotID, filepath, JSONfieldPath)
-
-    if isinstance(value, dict):
-        child_fields = list(value.keys())
-    elif isinstance(value, list):
-        child_fields = [str(i) for i in range(len(value))]
-    else:
-        child_fields = []
 
     return {
         "status": "success",
         "shot_id": shotID,
         "file_path": filepath,
         "field_path": JSONfieldPath,
-        "child_fields": child_fields
+        "child_fields": children
     }
 
 @SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Diagnostics/BasicDiagnostics')")
 def MCP_listDirectory(shotID: int, directory: str = ""):
-    directory = cleanseURL(directory)
+    directory = cleanse_path(directory)
     shotID, err = _parse_shot_id(shotID)
     if err:
         return err
