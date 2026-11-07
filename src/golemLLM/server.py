@@ -1,6 +1,7 @@
 # MCP server, main
 
 import asyncio
+import json
 import time
 
 from mcp.server.apps import Apps
@@ -124,6 +125,146 @@ def MCP_getShotFile(shotID: int, filePath: str):
             "status": "error",
             "error_type": "UNKNOWN_ERROR",
             "message": f"Unknown error while retrieving file '{filePath}' for shot {shotID}."
+        }
+
+@SERVER.tool("getShotJSON", description="Get a JSON file from a shot. File path is relative to the shot's root directory. Field path is the value in the JSON file.Example: getShotJSON(0, 'conductor/discharge.json', 'parameters/infrastructure.toroidal_magnetic_field/voltage_v')")
+def MCP_getShotJSON(shotID: int, JSONfilePath: str, JSONfieldPath: str):
+    filepath = cleanseURL(JSONfilePath)
+
+    try:
+        shotID = int(shotID)
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_SHOT_ID",
+            "message": f"Invalid shotID '{shotID}'. Must be an integer."
+        }
+    
+    if shotID != 0:
+        if shotID not in existence_cache:
+            existence_cache[shotID] = GOLEMC.shotProbeHEAD(shotID)
+        if not existence_cache[shotID]:
+            return {
+                "status": "error",
+                "error_type": "SHOT_NOT_FOUND",
+                "message": f"Shot {shotID} not found."
+            }
+    try:
+        data = GOLEMC.getShotFileCached(shotID, filepath)
+        if isinstance(data, (str, bytes, bytearray)):
+            data = json.loads(data)
+
+        value = data
+        for field in JSONfieldPath.strip("/").split("/"):
+            if not field:
+                continue
+            if isinstance(value, dict):
+                value = value[field]
+            elif isinstance(value, list):
+                value = value[int(field)]
+            else:
+                raise KeyError(field)
+
+        return {
+            "status": "success",
+            "shot_id": shotID,
+            "file_path": filepath,
+            "field_path": JSONfieldPath,
+            "value": value
+        }
+    except FileNotFoundError:
+        return {
+            "status": "error",
+            "error_type": "FILE_NOT_FOUND",
+            "message": f"File '{filepath}' not found for shot {shotID}."
+        }
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_JSON",
+            "message": f"File '{filepath}' does not contain valid JSON."
+        }
+    except (KeyError, IndexError, TypeError, ValueError):
+        return {
+            "status": "error",
+            "error_type": "FIELD_NOT_FOUND",
+            "message": f"Field path '{JSONfieldPath}' not found in file '{filepath}'."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_type": "UNKNOWN_ERROR",
+            "message": f"Unknown error while retrieving field '{JSONfieldPath}' from file '{filepath}' for shot {shotID}."
+        }
+@SERVER.tool("listJSONchildFields", description="Shallowly list the child fields of a JSON field in a file. File path is relative to the shot's root directory. Example: listJSONchildFields(0, 'conductor/discharge.json', 'quantities/diagnostics.basic_diagnostics/discharge')")
+def MCP_listJSONchildFields(shotID: int, JSONfilePath: str, JSONfieldPath: str):
+    filepath = cleanseURL(JSONfilePath)
+
+    try:
+        shotID = int(shotID)
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_SHOT_ID",
+            "message": f"Invalid shotID '{shotID}'. Must be an integer."
+        }
+    
+    if shotID != 0:
+        if shotID not in existence_cache:
+            existence_cache[shotID] = GOLEMC.shotProbeHEAD(shotID)
+        if not existence_cache[shotID]:
+            return {
+                "status": "error",
+                "error_type": "SHOT_NOT_FOUND",
+                "message": f"Shot {shotID} not found."
+            }
+    try:
+        data = GOLEMC.getShotFileCached(shotID, filepath)
+        if isinstance(data, (str, bytes, bytearray)):
+            data = json.loads(data)
+
+        value = data
+        for field in JSONfieldPath.strip("/").split("/"):
+            if not field:
+                continue
+            if isinstance(value, dict):
+                value = value[field]
+            elif isinstance(value, list):
+                value = value[int(field)]
+            else:
+                raise KeyError(field)
+
+        if isinstance(value, dict):
+            child_fields = list(value.keys())
+        elif isinstance(value, list):
+            child_fields = [str(i) for i in range(len(value))]
+        else:
+            child_fields = []
+
+        return {
+            "status": "success",
+            "shot_id": shotID,
+            "file_path": filepath,
+            "field_path": JSONfieldPath,
+            "child_fields": child_fields
+        }
+    except FileNotFoundError:
+        return {
+            "status": "error",
+            "error_type": "FILE_NOT_FOUND",
+            "message": f"File '{filepath}' not found for shot {shotID}."
+        }
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {
+            "status": "error",
+            "error_type": "INVALID_JSON",
+            "message": f"File '{filepath}' does not contain valid JSON."
+        }
+    except (KeyError, IndexError, TypeError, ValueError):
+        return {
+            "status": "error",
+            "error_type": "FIELD_NOT_FOUND",
+            "message": f"Field path '{JSONfieldPath}' not found in file '{filepath}'."
         }
 
 @SERVER.tool("listDirectory", description="List files and directories in a directory. File path is relative to the shot's root directory. Example: listDirectory(0, 'Diagnostics/BasicDiagnostics')")
