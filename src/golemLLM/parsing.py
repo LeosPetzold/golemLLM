@@ -47,6 +47,26 @@ def child_fields(value) -> list[str]:
     return []
 
 
+def parse_waveform(text: str) -> list[tuple[float, float]]:
+    """Parses a 'time,value;time,value;...' waveform string into (time, value) float pairs."""
+    pairs = []
+    for item in text.split(";"):
+        item = item.strip()
+        if not item:
+            continue
+        t, v = item.split(",")
+        pairs.append((float(t), float(v)))
+    return pairs
+
+
+def last_sample(text: str) -> tuple[float, float]:
+    """(time, value) of the sample farthest in time in a waveform string. Raises ValueError if it has no samples."""
+    pairs = parse_waveform(text)
+    if not pairs:
+        raise ValueError("Waveform has no samples.")
+    return max(pairs, key=lambda pair: pair[0])
+
+
 # Shot-level JSON access. `source` is any object with getShotFileCached(shotID, filePath),
 # e.g. a GolemCLIENThttp or GolemCLIENTlocal instance. Paths must already be cleansed.
 # They raise from failures.
