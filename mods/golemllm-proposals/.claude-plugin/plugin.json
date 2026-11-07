@@ -1,0 +1,6 @@
+{
+  "name": "golemllm-proposals",
+  "version": "0.1.0",
+  "description": "Pane beside the chat listing GolemLLM discharge proposals, with local approve and deny",
+  "types": "./types/index.d.ts"
+}

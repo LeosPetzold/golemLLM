@@ -221,3 +221,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Operator proposal queue and decisions (local data)
+.golemllm/

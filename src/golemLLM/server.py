@@ -3,11 +3,10 @@
 import asyncio
 import time
 
-from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
-from mcp.types import CallToolResult, TextContent
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+import json
 import logging
 import os
 
@@ -29,16 +28,16 @@ KNOWLEDGE_STATUS = os.path.join(os.path.dirname(__file__), "guide", "status.md")
 
 DRY_RUN = True  # Testing purposes only, prevents from running discharges
 TTL = 3600  # Time a proposal is valid for [s]
-UI_URI = "ui://proposal.html"
-UI_FILE = Path(__file__).parent / "ui" / "proposal.html"
+QUEUE_FILE = Path(os.environ.get("GOLEMLLM_QUEUE", Path(__file__).resolve().parents[2] / ".golemllm" / "proposals.jsonl"))
 
 LOGGER = logging.getLogger("MCPGolemLLM")
-APPS = Apps()
 GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VERBOSE)
           if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_FILES, verbose=VERBOSE))
 
-#region MCP application
-@APPS.tool(resource_uri=UI_URI, name="proposeDischarge", description="Propose a discharge to the operator.")
+SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", instructions=INSTRUCTIONS)
+
+#region Proposals
+@SERVER.tool("proposeDischarge", description="Propose a discharge to the operator.")
 def MCP_proposeDischarge(proposalTitle: str, proposalReason: str, referenceShotID: int, proposedCommand: str):
     try:
         referenceShotID = int(referenceShotID)
@@ -51,34 +50,27 @@ def MCP_proposeDischarge(proposalTitle: str, proposalReason: str, referenceShotI
             "message": f"Invalid referenceShotID '{referenceShotID}'. Must be a non-zero integer."
         }
 
-    return CallToolResult(
-        content=[ TextContent(type="text",
-                              text=(
-                                  f"Proposal title: {proposalTitle}\n"
-                                  f"Proposal reasoning: {proposalReason}\n"
-                                  f"Parameter reference shot ID: {referenceShotID}\n"
-                                  f"Proposed command: {proposedCommand}"
-                              )) ],
-        structured_content={
-            "proposal_title": proposalTitle,
-            "proposal_reason": proposalReason,
+    QUEUE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(QUEUE_FILE, "a") as f:
+        f.write(json.dumps({
+            "time": time.time(),
+            "title": proposalTitle,
+            "reason": proposalReason,
             "reference_shot_ID": referenceShotID,
-            "proposed_command": proposedCommand
-        },
-        _meta={
-            "ui": { "resourceUri": UI_URI }
-        }
+            "proposed_command": proposedCommand,
+        }) + "\n")
+    with open(QUEUE_FILE) as f:
+        index = sum(1 for _ in f)
+
+    return (
+        f"GsP#{index} queued: decide it in the GolemLLM proposals pane (not sent to Conductor).\n"
+        f"+------------------------------------------------------------\n"
+        f"| {proposalTitle}\n"
+        f"| Reference shot: GM#{referenceShotID}\n"
+        f"| Reasoning: {proposalReason}\n"
+        f"| Command: {proposedCommand}\n"
+        f"+------------------------------------------------------------"
     )
-
-APPS.add_html_resource(
-    UI_URI,
-    UI_FILE.read_text(),
-    name="Discharge proposal interface",
-    description="Interface for proposing discharges to the operator.",
-)
-
-SERVER = MCPServer("GolemLLM", title="GOLEM AI discharge assistance toolkit", instructions=INSTRUCTIONS,
-                   extensions=[APPS])
 #endregion
 
 #region GOLEM data access

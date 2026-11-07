@@ -7,6 +7,11 @@ The MCP server provides AI with an intuitive way to view the latest shot data ([
 (http://golem.fjfi.cvut.cz/shots/0/Operation/Discharge/Styles/index.html) which will (after the operator accepts it) be performed on the tokamak. \
 This is an interative process and will adapt shots to the operator's needs (whether plasma stability or best [MHD](https://en.wikipedia.org/wiki/Magnetohydrodynamics) anomaly detection, depends on instructions) to a point where GOLEM personnel can resume under better conditions without spending time on finding them.
 
+## Proposals (queue and pane)
+- `proposeDischarge` queues a proposal to `.golemllm/proposals.jsonl` in the repo and returns a text box in the chat.
+- The `mods/golemllm-proposals` Claude Code mod shows the queue in a pane beside the chat, with local Approve / Deny. Decisions go to `.golemllm/decisions.jsonl`; **nothing is sent to Conductor or the tokamak**. See `mods/golemllm-proposals/README.md`.
+- The server reads `GOLEMLLM_QUEUE` to choose its queue file. The mod reads `.golemllm/` relative to the directory Claude Code runs in, so start the session from the repo root.
+
 ## Setup
 1. Clone the repository: `git clone https://github.com/LeosPetzold/golemLLM`
 2. Create a Python virtual environment in the `golemLLM` repo directory: `python3 -m venv .venv`
