@@ -1,11 +1,14 @@
 # Shot archive access & caching
 
 import os
+import shutil
 import time
+from pathlib import Path
 import urllib.request
 import urllib.error
 import urllib.parse
 from html.parser import HTMLParser
+from enum import Enum
 #import argparse
 
 HTTP_SHOTSURL_DEFAULT = "http://golem.fjfi.cvut.cz/shots"
@@ -17,6 +20,61 @@ LOCAL_ATTEMPTS = 5  # retries for file access
 
 _MISSING = object() # Sentinel for missing files
 
+class Caching(Enum):
+    NONE = 0
+    MEMORY = 1
+    FILESYSTEM = 2
+def _resolveCacheMode(cache):
+    """Accepts a Caching member or a bool (True -> MEMORY, False -> NONE)."""
+    if isinstance(cache, Caching):
+        return cache
+    return Caching.MEMORY if cache else Caching.NONE
+CACHE_FILESYSTEM_DEFAULT = str(
+    Path(__file__).resolve().parents[3] / ".golemllm" / "cache"
+)
+_MISSING_DIRNAME = ".missing"  # Marker subdirectory for files known to be absent
+
+def _fsPaths(cacheDir, key):
+    """Returns (data_path, missing_marker_path) for a (shotID, fileName) key."""
+    shotID, fileName = key
+    dataPath = os.path.join(cacheDir, str(shotID), fileName)
+    markerPath = os.path.join(cacheDir, str(shotID), _MISSING_DIRNAME, fileName)
+    return dataPath, markerPath
+def _fsWriteAtomic(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp-{os.getpid()}"
+    with open(tmp, 'wb') as f:
+        f.write(data)
+    os.replace(tmp, path)
+def cacheGet(cache, mode, key):
+    """Returns the cached value for key, _MISSING for a cached absence, or None if not present.
+    Entries never expire."""
+    match mode:
+        case Caching.NONE:
+            return None
+        case Caching.MEMORY:
+            return cache.get(key, None)
+        case Caching.FILESYSTEM:
+            dataPath, markerPath = _fsPaths(cache, key)
+            if os.path.isfile(markerPath):
+                return _MISSING
+            if os.path.isfile(dataPath):
+                with open(dataPath, 'rb') as f:
+                    return f.read()
+            return None
+def cacheSet(cache, mode, key, value):
+    """Sets the cached value for key (or _MISSING). Entries never expire."""
+    match mode:
+        case Caching.NONE:
+            pass
+        case Caching.MEMORY:
+            cache[key] = value
+        case Caching.FILESYSTEM:
+            dataPath, markerPath = _fsPaths(cache, key)
+            if value is _MISSING:
+                _fsWriteAtomic(markerPath, b"")
+            else:
+                _fsWriteAtomic(dataPath, value)
 
 class _DirectoryListingParser(HTMLParser):
     """Parse files and directories from a standard HTML directory index."""
@@ -48,15 +106,15 @@ class _GolemCLIENTbase:
         path_parts = [p for p in str(fileName).replace("\\", "/").split("/") if p not in ("", ".", "..")]
         fileName = "/".join(path_parts)
         
-        if not self.cache:
+        if self.cacheMode == Caching.NONE:
             data = self.getShotFile(shotID, fileName)
             if self.verbose: print(f"[DEBUG] Caching disabled. Returning file '{fileName}' for shot {shotID} without caching.")
             return data
-        #else:
 
         cache_key = (shotID, fileName)
-        if cache_key in self._cache:
-            data = self._cache[cache_key]
+        store = self._cacheDir if self.cacheMode == Caching.FILESYSTEM else self._cache
+        data = cacheGet(store, self.cacheMode, cache_key)
+        if data is not None:
             if data is _MISSING:
                 if self.verbose: print(f"[DEBUG] Returning cached MISSING for file '{fileName}' of shot {shotID}")
                 raise FileNotFoundError(f"File '{fileName}' not found for shot {shotID}.")
@@ -66,24 +124,27 @@ class _GolemCLIENTbase:
         try:
             data = self.getShotFile(shotID, fileName)
         except FileNotFoundError:
-            self._cache[cache_key] = _MISSING
+            cacheSet(store, self.cacheMode, cache_key, _MISSING)
             raise
-        self._cache[cache_key] = data
+        cacheSet(store, self.cacheMode, cache_key, data)
         if self.verbose: print(f"[DEBUG] Cached file '{fileName}' for shot {shotID}")
         return data
         
     def _clearCache(self):
-        """BASE HAS NO DESCRIPTION FOR THIS."""
+        """Drops all cached entries for the active mode."""
         self._cache.clear()
+        if self.cacheMode == Caching.FILESYSTEM and os.path.isdir(self._cacheDir):
+            shutil.rmtree(self._cacheDir)
 
 
 # Golem CLIENT for HTTP access
 class GolemCLIENThttp(_GolemCLIENTbase):
-    def __init__(self, shotsURL=HTTP_SHOTSURL_DEFAULT, cache=True, verbose=False):
+    def __init__(self, shotsURL=HTTP_SHOTSURL_DEFAULT, cache=Caching.FILESYSTEM, verbose=False, cacheDir=CACHE_FILESYSTEM_DEFAULT):
         self.shotsURL = shotsURL
-        self.cache = cache
+        self.cacheMode = _resolveCacheMode(cache)
         self.verbose = verbose
         self._cache = {}
+        self._cacheDir = cacheDir
 
     # General shot functionality
 
@@ -157,11 +218,12 @@ class GolemCLIENThttp(_GolemCLIENTbase):
 
 # Golem CLIENT for filesystem access
 class GolemCLIENTlocal(_GolemCLIENTbase):
-    def __init__(self, basePath=LOCAL_SHOTSPATH_DEFAULT, cache=False, verbose=False):
+    def __init__(self, basePath=LOCAL_SHOTSPATH_DEFAULT, cache=Caching.NONE, verbose=False, cacheDir=CACHE_FILESYSTEM_DEFAULT):
         self.basePath = basePath
-        self.cache = cache
+        self.cacheMode = _resolveCacheMode(cache)
         self.verbose = verbose
         self._cache = {}
+        self._cacheDir = cacheDir
 
     # General shot functionality
 

@@ -11,7 +11,7 @@ from mcp.server.apps import Apps
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
 
-from golemLLM.core.client import GolemCLIENThttp, GolemCLIENTlocal
+from golemLLM.core.client import Caching, GolemCLIENThttp, GolemCLIENTlocal
 from golemLLM.parsing import cleanse_path, getShotJSONfield, listJSONfields
 
 INSTRUCTIONS = """You are a research assistant aiding the operator (user) in operating the GOLEM tokamak.
@@ -20,7 +20,7 @@ You may do so by sending a proposal to this MCP server.
 Further instructions and experience in operating the tokamak may be found in guide://basics (see MCP resources)."""
 
 LOCAL = False  # Use local GolemClient for shots?
-CACHE_FILES = True
+CACHE_MODE = Caching.FILESYSTEM  # NONE, MEMORY or FILESYSTEM; entries never expire (clear via clearCache)
 CLIENT_LOCAL_SHOTSDIR = "/home/tG/shots/"
 CLIENT_HTTP_SHOTSURL = "http://golem.fjfi.cvut.cz/shots"
 VERBOSE = False  # Verbose logging for GolemClient
@@ -37,8 +37,8 @@ UI_FILE = Path(__file__).parent / "ui" / "proposal.html"
 
 LOGGER = logging.getLogger("MCPGolemLLM")
 APPS = Apps()
-GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_FILES, verbose=VERBOSE)
-          if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_FILES, verbose=VERBOSE))
+GOLEMC = (GolemCLIENTlocal(CLIENT_LOCAL_SHOTSDIR, cache=CACHE_MODE, verbose=VERBOSE)
+          if LOCAL else GolemCLIENThttp(CLIENT_HTTP_SHOTSURL, cache=CACHE_MODE, verbose=VERBOSE))
 
 #region Helpers
 def _error(error_type: str, message: str) -> dict:

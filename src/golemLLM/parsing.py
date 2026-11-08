@@ -59,12 +59,19 @@ def parse_waveform(text: str) -> list[tuple[float, float]]:
     return pairs
 
 
-def last_sample(text: str) -> tuple[float, float]:
-    """(time, value) of the sample farthest in time in a waveform string. Raises ValueError if it has no samples."""
+def last_sample(text: str, offset=int(0)) -> tuple[float, float]:
+    """Return the sample ``offset`` positions back from the latest sample.
+
+    ``offset=0`` returns the latest sample and ``offset=1`` the second to
+    last. Raises ValueError if there are no samples and IndexError if offset
+    is outside the available samples.
+    """
     pairs = parse_waveform(text)
     if not pairs:
         raise ValueError("Waveform has no samples.")
-    return max(pairs, key=lambda pair: pair[0])
+    if offset < 0:
+        raise IndexError("Sample offset is out of range.")
+    return sorted(pairs, key=lambda pair: pair[0], reverse=True)[offset]
 
 
 # Shot-level JSON access. `source` is any object with getShotFileCached(shotID, filePath),
