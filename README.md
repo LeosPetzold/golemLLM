@@ -5,11 +5,15 @@
 Link an [MCP](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro)-capable [LLM](https://en.wikipedia.org/wiki/Large_language_model) to let it propose configurations on the [GOLEM](https://golem.fjfi.cvut.cz/) tokamak. \
 The MCP server provides AI with an intuitive way to view the latest shot data ([shot database](http://golem.fjfi.cvut.cz/shots/0/) via HTTP or filesystem) and lets it propose a [Discharge command]
 (http://golem.fjfi.cvut.cz/shots/0/Operation/Discharge/Styles/index.html) which will (after the operator accepts it) be performed on the tokamak. \
-This is an interative process and will adapt shots to the operator's needs (whether plasma stability or best [MHD](https://en.wikipedia.org/wiki/Magnetohydrodynamics) anomaly detection, depends on instructions) to a point where GOLEM personnel can resume under better conditions without spending time on finding them.
+
+This is an interative process and will adapt shots to the operator's needs (whether plasma stability or best [MHD](https://en.wikipedia.org/wiki/Magnetohydrodynamics) anomaly detection, depends on instructions) to a point where GOLEM personnel can resume under better conditions without spending time on finding them. \
+
+The AI can also write custom scripts for data analysis and tools. Some of them proved very useful in production and will be built into the MCP server.
 
 ## Project status
 This project is under active development. \
-With the help of previous shots, GOLEM operators and the GolemLLM system in this repository, we were able to achieve shot [GM#54785](https://golem.fjfi.cvut.cz/shots/54785) with remarkably stable plasma with surprising repeatability. This is currently being studied.
+> [!TIP]
+> With the help of previous shots, GOLEM operators and the GolemLLM system we were able to achieve shot [GM#54785](https://golem.fjfi.cvut.cz/shots/54785) with remarkably stable plasma and surprising repeatability. This is currently being studied.
 
 ## Setup
 1. Clone the repository: `git clone https://github.com/LeosPetzold/golemLLM`
@@ -18,6 +22,7 @@ With the help of previous shots, GOLEM operators and the GolemLLM system in this
 4. Install required packages: `pip install -r requirements.txt`
 5. Add `server.py` as MCP server
 6. Roll
+
 The following can be used for configuring `mcp.json` for Visual Studio Code:
 ```json
 {

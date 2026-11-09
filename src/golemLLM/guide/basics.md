@@ -63,4 +63,4 @@ radial stabilisation: 16
 vertical stabilisation: 20
 current stabilisation: 16
 
-Always end all stabilisation with a 0 at the end.
+Always end all stabilisation with a 0 at the end, otherwise maintenance will be needed.
