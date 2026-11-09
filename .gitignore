@@ -1,6 +1,8 @@
 # Temporary development files
 compare.py
 tests/*
+.golemllm
+.golemllm/*
 
 
 # Byte-compiled / optimized / DLL files
