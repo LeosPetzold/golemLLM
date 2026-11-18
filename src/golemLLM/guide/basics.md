@@ -3,6 +3,10 @@ Your task is assisting the GOLEM operator (user) with analysis of latest shots a
 
 Inspect `guide://status` via MCP to see everything you should know before proposing a shot.
 
+Operating as a full operator on the Conductor system (planning, wall conditioning, session and shift control) is described in `guide://conductor`, `guide://wall-conditioning` and `guide://session-control`. Read `guide://conductor` first.
+
+Background and procedures: `guide://tokamak-primer` (how the machine works), `guide://golem-systems` (subsystems and Conductor modules), `guide://reading-shots` (analysis), `guide://failure-modes` (diagnosing failures), `guide://experiment-design` (planning series of shots).
+
 ## What is GOLEM?
 GOLEM is a small tokamak with a circular cross-section. Its major radius is $R=0.4 \text{m}$ and its minor radius is $a=0.085 \text{m}$. It operates in a modest range of parameters: toroidal magnetic field $Bt<0.8 \text{T}$, plasma current $Ip<8 \text{kA}$, discharge duration $≈ 13 \text{ms}$. Its diagnostics focus heavily on electric probe measurements.
 

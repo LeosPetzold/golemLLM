@@ -27,6 +27,14 @@ VERBOSE = False  # Verbose logging for GolemClient
 
 KNOWLEDGE_BASICS = os.path.join(os.path.dirname(__file__), "guide", "basics.md")
 KNOWLEDGE_STATUS = os.path.join(os.path.dirname(__file__), "guide", "status.md")
+KNOWLEDGE_CONDUCTOR = os.path.join(os.path.dirname(__file__), "guide", "conductor.md")
+KNOWLEDGE_WALL_CONDITIONING = os.path.join(os.path.dirname(__file__), "guide", "wall-conditioning.md")
+KNOWLEDGE_SESSION_CONTROL = os.path.join(os.path.dirname(__file__), "guide", "session-control.md")
+KNOWLEDGE_TOKAMAK_PRIMER = os.path.join(os.path.dirname(__file__), "guide", "tokamak-primer.md")
+KNOWLEDGE_GOLEM_SYSTEMS = os.path.join(os.path.dirname(__file__), "guide", "golem-systems.md")
+KNOWLEDGE_READING_SHOTS = os.path.join(os.path.dirname(__file__), "guide", "reading-shots.md")
+KNOWLEDGE_FAILURE_MODES = os.path.join(os.path.dirname(__file__), "guide", "failure-modes.md")
+KNOWLEDGE_EXPERIMENT_DESIGN = os.path.join(os.path.dirname(__file__), "guide", "experiment-design.md")
 
 DRY_RUN = True  # Testing purposes only, prevents from running discharges
 TTL = 3600  # Time a proposal is valid for [s]
@@ -225,13 +233,45 @@ async def await_shot(shotID: int) -> str:
 #endregion
 
 #region GOLEM know-how
-@SERVER.resource("guide://basics", name="How to serve as a GOLEM discharge assistant", description="Basic guide for serving as a discharge assistant")
+@SERVER.resource("guide://basics", name="How to serve as a GOLEM discharge assistant", description="Basic guide for serving as a discharge assistant. Read first with priority.")
 def guide_basics():
     return _read_knowledge(KNOWLEDGE_BASICS)
 
-@SERVER.resource("guide://status", name="Things to know before proposing shots", description="Everything temporary to take into account before proposing shots")
+@SERVER.resource("guide://status", name="Things to know before proposing shots", description="Everything temporary to take into account before proposing shots. Read after basics.md.")
 def guide_status():
     return _read_knowledge(KNOWLEDGE_STATUS)
+
+@SERVER.resource("guide://conductor", name="Operating GOLEM through Conductor", description="Role, scope and limits when acting as a full operator on the Conductor system. Read first.")
+def guide_conductor():
+    return _read_knowledge(KNOWLEDGE_CONDUCTOR)
+
+@SERVER.resource("guide://wall-conditioning", name="Wall conditioning", description="Baking, glow discharge and pumping for chamber wall conditioning. Operator performs physical steps.")
+def guide_wall_conditioning():
+    return _read_knowledge(KNOWLEDGE_WALL_CONDITIONING)
+
+@SERVER.resource("guide://session-control", name="Session and shift control", description="Session identifiers, lifecycle, shift handover and session-level proposals.")
+def guide_session_control():
+    return _read_knowledge(KNOWLEDGE_SESSION_CONTROL)
+
+@SERVER.resource("guide://tokamak-primer", name="Tokamak primer", description="How a tokamak works as a system: fields, breakdown, Ohmic heating, q, density limit, disruptions, position control. Read before other operator guides.")
+def guide_tokamak_primer():
+    return _read_knowledge(KNOWLEDGE_TOKAMAK_PRIMER)
+
+@SERVER.resource("guide://golem-systems", name="GOLEM systems", description="GOLEM subsystems, the Conductor modules that drive them, and the discharge sequence.")
+def guide_golem_systems():
+    return _read_knowledge(KNOWLEDGE_GOLEM_SYSTEMS)
+
+@SERVER.resource("guide://reading-shots", name="Reading GOLEM shots", description="Which quantities matter in a shot, how to analyse them, and how to report spread and missing data.")
+def guide_reading_shots():
+    return _read_knowledge(KNOWLEDGE_READING_SHOTS)
+
+@SERVER.resource("guide://failure-modes", name="Failure modes", description="Diagnosing failed or refused shots and disruptions by phase, with safety responses.")
+def guide_failure_modes():
+    return _read_knowledge(KNOWLEDGE_FAILURE_MODES)
+
+@SERVER.resource("guide://experiment-design", name="Experiment design", description="Planning a series of shots: one variable at a time, scans, success criteria, stopping rules.")
+def guide_experiment_design():
+    return _read_knowledge(KNOWLEDGE_EXPERIMENT_DESIGN)
 #endregion
 
 #region RUNTIME
