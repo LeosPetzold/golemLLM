@@ -4,6 +4,9 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
+import sys
+import threading
 import time
 from pathlib import Path
 
@@ -87,6 +90,23 @@ def _json_field_error(e: Exception, shotID: int, filepath: str, fieldPath: str) 
         return _error("FIELD_NOT_FOUND", f"Field path '{fieldPath}' not found in file '{filepath}'.")
     return _error("UNKNOWN_ERROR", f"Unknown error while reading field '{fieldPath}' from file '{filepath}' for shot {shotID}.")
 
+PROPOSAL_WINDOW_SCRIPT = Path(__file__).parent / "proposal_window.py"
+PROPOSAL_WINDOW_PYTHON = sys.executable  # Project venv; PySide6 is installed there
+PROPOSAL_WINDOW_SCREEN = 0  # Screen index (0 = primary) or exact screen name, e.g. "DP-1"
+
+def _show_proposal_window(proposal: dict) -> None:
+    """Opens a centered proposal window in a detached process. Never blocks the tool call."""
+    payload = {**proposal, "screen": PROPOSAL_WINDOW_SCREEN}
+    try:
+        proc = subprocess.Popen([PROPOSAL_WINDOW_PYTHON, str(PROPOSAL_WINDOW_SCRIPT)],
+                                stdin=subprocess.PIPE, start_new_session=True)
+        proc.stdin.write(json.dumps(payload).encode())
+        proc.stdin.close()
+        # Reap the child in the background so it does not linger as a zombie.
+        threading.Thread(target=proc.wait, daemon=True).start()
+    except OSError as e:
+        LOGGER.warning("Could not open proposal window: %s", e)
+
 def _read_knowledge(path: str):
     try:
         with open(path, "r") as f:
@@ -104,6 +124,13 @@ def MCP_proposeDischarge(proposalTitle: str, proposalReason: str, referenceShotI
             raise ValueError
     except (ValueError, TypeError):
         return _error("INVALID_SHOT_ID", f"Invalid referenceShotID '{referenceShotID}'. Must be a non-negative integer.")
+
+    _show_proposal_window({
+        "proposal_title": proposalTitle,
+        "proposal_reason": proposalReason,
+        "reference_shot_ID": referenceShotID,
+        "proposed_command": proposedCommand
+    })
 
     return CallToolResult(
         content=[TextContent(type="text",
