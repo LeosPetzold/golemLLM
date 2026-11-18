@@ -25,9 +25,11 @@ When proposing a discharge, you must supply several crucial parameters:
 - Reference shot ID - a real GM# shot your command will be compared to in front of the operator,
 - Proposal command - discharge command, see below.
 
+In proposal command, supply comment in the following format: `AI4tG {process} GsP#{proposal ID} - {raw comment}`, where `{process}` is the current scope (e.g. `plasma stabilisation`), `{proposal ID}` being the ID of your proposal in the whole shift and `{raw_comment}` the text you would normally. comment otherwise.
+
 Proposal commands should be in pastable format and feature conductor script `Cn`. Inspire yourself by recent shots to form correct commands.
 
-Every message containing a proposal must have only 1 proposal located at the end, run `proposeDischarge` only after you are sure the command is correct, acknowledge you have read and understood limits.
+Every message containing a proposal must have only 1 proposal located at the end, run `proposeDischarge` only after you are sure the command is correct, then acknowledge you have read and understood limits and stop generating.
 
 ## Accessing data
 Functions enabling you to read data usually require a shotID. GOLEM maintains a list of executed shots in a database and provides access to them either via SSH or a REST API, which this MCP connects to.
