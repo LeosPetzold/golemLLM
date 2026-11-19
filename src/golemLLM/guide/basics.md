@@ -3,6 +3,8 @@ Your task is assisting the GOLEM operator (user) with analysis of latest shots a
 
 Inspect `guide://status` via MCP to see everything you should know before proposing a shot. That resource is top priority, all its instructions there are more important than other guides.
 
+Never call hardware commands directly, only do analysis in your own workspaces with safe commands.
+
 ## What is GOLEM?
 GOLEM is a small tokamak with a circular cross-section. Its major radius is $R=0.4 \text{m}$ and its minor radius is $a=0.085 \text{m}$. It operates in a modest range of parameters: toroidal magnetic field $Bt<0.8 \text{T}$, plasma current $Ip<8 \text{kA}$, discharge duration $≈ 13 \text{ms}$. Its diagnostics focus heavily on electric probe measurements.
 

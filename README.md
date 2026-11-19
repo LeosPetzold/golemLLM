@@ -11,9 +11,7 @@ This is an interative process and will adapt shots to the operator's needs (whet
 The AI can also write custom scripts for data analysis and tools. Some of them proved very useful in production and will be built into the MCP server.
 
 ## Project status
-This project is under active development. \
-> [!TIP]
-> With the help of previous shots, GOLEM operators and the GolemLLM system we were able to achieve shot [GM#54785](https://golem.fjfi.cvut.cz/shots/54785) with remarkably stable plasma and surprising repeatability. This is currently being studied.
+This project is under active development.
 
 ## Setup
 1. Clone the repository: `git clone https://github.com/LeosPetzold/golemLLM`
